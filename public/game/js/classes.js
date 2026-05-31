@@ -266,6 +266,8 @@ class ClassSystem {
         }
 
         // Apply Player Specific Talent and Prestige passive multipliers
+        let baseDex = character.stats ? character.stats.dex : 10;
+
         if (character.talent !== undefined) { // Check if it's the main character state
             const talent = character.talent;
             const prestigeState = window.gameState.state ? window.gameState.state.prestige : null;
@@ -286,6 +288,20 @@ class ClassSystem {
             if (upgrades.haste > 0) {
                 cooldownRed = Math.min(40, cooldownRed + (upgrades.haste * 5)); // +5% Haste per level
             }
+
+            // 3. Fatigue debuff
+            const fatigue = character.fatigue !== undefined ? character.fatigue : 0;
+            if (fatigue > 0) {
+                const penaltyFactor = Math.max(0.3, 1 - fatigue * 0.007);
+                cooldownRed = Math.round(cooldownRed * penaltyFactor);
+                dodge = parseFloat((dodge * penaltyFactor).toFixed(1));
+                baseDex = Math.floor(baseDex * penaltyFactor);
+                
+                const statsPenaltyFactor = Math.max(0.75, 1 - fatigue * 0.0025);
+                patk = Math.floor(patk * statsPenaltyFactor);
+                matk = Math.floor(matk * statsPenaltyFactor);
+                def = Math.floor(def * statsPenaltyFactor);
+            }
         }
 
         return {
@@ -297,7 +313,8 @@ class ClassSystem {
             dodge,
             critRate,
             critDmg,
-            cooldownRed
+            cooldownRed,
+            dex: baseDex
         };
     }
 }

@@ -179,25 +179,51 @@ class DungeonsSystem {
             return false;
         }
 
-        const gate = this.gates[gateId];
+        let gate = this.gates[gateId];
+        if (!gate && state.world.dynamicGates) {
+            gate = state.world.dynamicGates.find(g => g.id === gateId);
+        }
         if (!gate) return false;
 
+        // Verify Reservation & Licencji status
+        const isReserved = state.world.reservedGates[gateId];
+        // Dungeon breaks are free and don't require license
+        const isDungeonBreak = gate.dynamicType === 'dungeon_break';
+        if (!isReserved && !isDungeonBreak) {
+            alert('Ta Brama nie została opłacona lub zarezerwowana! Wykup licencję w panelu przygotowania przed wejściem.');
+            return false;
+        }
+
+        // AUTO-SAVE & DUNGEON BACKUP before entering!
+        // We write a backup key to restore if player dies or decides to escape
+        localStorage.setItem(window.gameState.SAVE_KEY + "_dungeon_backup", JSON.stringify(state));
+        console.log("[SYSTEM] Wykonano punkt przywracania (Backup) przed wejściem do Bramy.");
+
+        // Clear reservation upon successfully entering
+        if (isReserved) {
+            delete state.world.reservedGates[gateId];
+        }
+
         this.battleActive = true;
+        this.isPaused = false;
+        this.escapePromptTriggered = false;
         this.activeParty = this.prepareBattleParty();
         this.currentWave = 1;
 
         // Deciding Gate Type / Layout based on Rank
-        this.gateType = 'standard';
-        const rollType = Math.random() * 100;
-        if (gate.rank !== 'E') {
-            if (gate.rank === 'D') {
-                if (rollType > 82) this.gateType = 'red_gate'; // 18% for Red Gate
-            } else {
-                // Ranks C, B, A, S
-                if (rollType > 88) {
-                    this.gateType = 'double_dungeon'; // 12% Double Dungeon
-                } else if (rollType > 70) {
-                    this.gateType = 'red_gate'; // 18% Red Gate
+        this.gateType = gate.dynamicType || 'standard';
+        if (!gate.isDynamic) {
+            const rollType = Math.random() * 100;
+            if (gate.rank !== 'E') {
+                if (gate.rank === 'D') {
+                    if (rollType > 82) this.gateType = 'red_gate'; // 18% for Red Gate
+                } else {
+                    // Ranks C, B, A, S
+                    if (rollType > 88) {
+                        this.gateType = 'double_dungeon'; // 12% Double Dungeon
+                    } else if (rollType > 70) {
+                        this.gateType = 'red_gate'; // 18% Red Gate
+                    }
                 }
             }
         }
@@ -269,7 +295,11 @@ class DungeonsSystem {
      * Generates a wave of monsters or the boss
      */
     spawnWave(gateId) {
-        const gate = this.gates[gateId];
+        const state = window.gameState.state;
+        let gate = this.gates[gateId];
+        if (!gate && state.world.dynamicGates) {
+            gate = state.world.dynamicGates.find(g => g.id === gateId);
+        }
         this.monsters = [];
 
         const isLastWave = this.currentWave === this.totalWaves;
@@ -283,14 +313,26 @@ class DungeonsSystem {
             // 25% chance to spawn an Elite on this sector (pre-boss)
             const isEliteSpawn = Math.random() < 0.25;
 
-            // Randomized count of enemies: 1 to 3 enemies pre-boss
-            const numMobs = 1 + Math.floor(Math.random() * 2);
+            // Procedural count of enemies based on Gate Rank: range 2-20 as requested!
+            let minMobs = 2;
+            let maxMobs = 4;
+            if (gate.rank === 'D') { minMobs = 3; maxMobs = 6; }
+            else if (gate.rank === 'C') { minMobs = 5; maxMobs = 10; }
+            else if (gate.rank === 'B') { minMobs = 7; maxMobs = 13; }
+            else if (gate.rank === 'A') { minMobs = 10; maxMobs = 16; }
+            else if (gate.rank === 'S') { minMobs = 12; maxMobs = 20; }
+
+            const numMobs = minMobs + Math.floor(Math.random() * (maxMobs - minMobs + 1));
 
             for (let i = 1; i <= numMobs; i++) {
                 let mobName = "";
                 let hp = gate.mobTemplate.hp;
                 let patk = gate.mobTemplate.patk;
                 let def = gate.mobTemplate.def;
+
+                // Swarm balance: Reduce individual HP slightly when facing massive crowds to prevent boring HP sponges
+                const swarmScale = Math.max(0.4, 1.25 - (numMobs * 0.045));
+                hp = Math.floor(hp * swarmScale);
 
                 if (isDoubleDungeon) {
                     mobName = `Ożywiony Posąg Wojownika ${String.fromCharCode(64 + i)}`;
@@ -468,8 +510,15 @@ class DungeonsSystem {
      */
     simulateTick(gateId) {
         if (!this.battleActive) return;
+        if (this.isPaused) return;
 
-        const gate = this.gates[gateId];
+        const state = window.gameState.state;
+        let gate = this.gates[gateId];
+        if (!gate && state.world.dynamicGates) {
+            gate = state.world.dynamicGates.find(g => g.id === gateId);
+        }
+        if (!gate) return;
+
         const log = [];
 
         // 1. Charge Action Bars for Allies and Monsters
@@ -595,6 +644,11 @@ class DungeonsSystem {
         // Check if all monsters in this sector died
         const allMonstersDead = this.monsters.every(m => m.hp <= 0);
         if (allMonstersDead) {
+            // Player gains fatigue with each wave/sector cleared
+            if (state && state.player) {
+                state.player.fatigue = Math.min(100, (state.player.fatigue || 0) + 12);
+                log.push(`[SYSTEM] Zwycięstwo w sektorze! Twoje Zmęczenie wzrosło o +12 (Obecnie: ${Math.round(state.player.fatigue)}/100).`);
+            }
             this.currentWave++;
             if (this.currentWave <= this.totalWaves) {
                 this.spawnWave(gateId);
@@ -602,6 +656,22 @@ class DungeonsSystem {
                 // Battle Win!
                 this.battleActive = false;
                 window.gameState.state.world.currentGate = null;
+
+                // Cleanup Dynamic Gate and pay Association Bounty for Dungeon Breaks
+                let associationGoldBonus = 0;
+                let associationText = "";
+                if (gate.isDynamic) {
+                    // Suppress or purge from dynamicGates array
+                    window.gameState.state.world.dynamicGates = window.gameState.state.world.dynamicGates.filter(g => g.id !== gateId);
+                    
+                    if (gate.dynamicType === 'dungeon_break') {
+                        // Calculate gold bonus based on gate rank
+                        const rankCosts = { 'E': 120, 'D': 450, 'C': 1600, 'B': 4200, 'A': 12500, 'S': 38000 };
+                        associationGoldBonus = Math.floor((rankCosts[gate.rank] || 300) * 1.8);
+                        window.gameState.addGold(associationGoldBonus);
+                        associationText = ` oraz bonus Stowarzyszenia za walkę z przełomem: +${associationGoldBonus} Złota`;
+                    }
+                }
                 
                 // Crystals Calculation (Prestige & Talent multipliers apply to crystal yield!)
                 let crystalsEarned = Math.floor(gate.rewards.crystalsMin + Math.random() * (gate.rewards.crystalsMax - gate.rewards.crystalsMin));
@@ -640,6 +710,9 @@ class DungeonsSystem {
                     const goldBonus = Math.floor(300 + Math.random() * 1000);
                     window.gameState.addGold(goldBonus);
                     extraGoldText = ` oraz +${goldBonus} Sztuk Złota jako podarek Świątyni`;
+                }
+                if (associationGoldBonus > 0) {
+                    extraGoldText += associationText;
                 }
 
                 // Save survivor HP and MP back to state
@@ -697,6 +770,42 @@ class DungeonsSystem {
                 log.push(`[PRZECIWNIK] ${monster.name} zadaje szybki cios, zadając ${finalDmg} obrażeń dla ${target.name}.`);
             }
         });
+
+        // 3b. Emergency Escape / Death check for Player
+        const playerInActiveParty = this.activeParty.find(a => a.id === 'player');
+        if (playerInActiveParty) {
+            const hpRatio = playerInActiveParty.hp / playerInActiveParty.maxHp;
+            
+            // Trigger escape prompt at < 10% health
+            if (hpRatio <= 0.10 && playerInActiveParty.hp > 0 && !this.escapePromptTriggered) {
+                this.escapePromptTriggered = true;
+                this.isPaused = true;
+                this.battleLog.push(...log);
+                if (window.uiEngine) {
+                    window.uiEngine.showEscapeModal();
+                }
+                return;
+            }
+
+            // Trigger Permanent Death overlay if player HP is 0
+            if (playerInActiveParty.hp <= 0) {
+                this.battleActive = false;
+                this.isPaused = true;
+                
+                // Set current gate to null so the game registry knows we ended
+                window.gameState.state.world.currentGate = null;
+                window.gameState.state.player.hp = 0;
+                window.gameState.state.mercenaries = [];
+                window.gameState.save();
+
+                log.push(`[KATASTROFA] TWÓJ BOHATER ODNIOSŁ ŚMIERTELNE OBRAŻENIA!`);
+                this.battleLog.push(...log);
+                if (window.uiEngine) {
+                    window.uiEngine.showDeathScreen();
+                }
+                return;
+            }
+        }
 
         // Check if all allies died
         const allAlliesDead = this.activeParty.every(a => a.hp <= 0);
@@ -808,6 +917,194 @@ class DungeonsSystem {
 
         // Trigger UI updates
         window.uiEngine.updateHUD();
+    }
+
+    /**
+     * Calculates victory prediction / death probability for a specific gate based on player and companion stats.
+     */
+    calculateDeathProbability(gateId) {
+        const state = window.gameState.state;
+        let gate = this.gates[gateId];
+        if (!gate && state.world.dynamicGates) {
+            gate = state.world.dynamicGates.find(g => g.id === gateId);
+        }
+        if (!gate) return 0;
+
+        // 1. Calculate active party power
+        let partyHp = 0;
+        let partyAtk = 0;
+        let partyDef = 0;
+
+        const playerStats = window.classSystem.calculateDerivedStats(state.player);
+        partyHp += playerStats.maxHp;
+        partyAtk += playerStats.patk + playerStats.matk;
+        partyDef += playerStats.def;
+
+        if (state.party) {
+            state.party.forEach(id => {
+                if (id === 'player') return;
+                const companion = state.companions[id];
+                if (companion && companion.recruited) {
+                    const derived = window.classSystem.calculateDerivedStats(companion);
+                    partyHp += derived.maxHp;
+                    partyAtk += derived.patk + derived.matk;
+                    partyDef += derived.def;
+                }
+            });
+        }
+
+        if (state.mercenaries) {
+            state.mercenaries.forEach(mercenary => {
+                partyHp += mercenary.maxHp;
+                partyAtk += mercenary.derived.patk + mercenary.derived.matk;
+                partyDef += mercenary.derived.def;
+            });
+        }
+
+        const partyPower = partyHp * 1.0 + (partyAtk * 4.5) + (partyDef * 3.5);
+
+        // 2. Estimate enemies power (mobs + boss)
+        let enemyHp = gate.mobTemplate.hp;
+        let enemyAtk = gate.mobTemplate.patk;
+        let enemyDef = gate.mobTemplate.def;
+
+        // Determine average mobs based on rank
+        let minMobs = 2;
+        let maxMobs = 4;
+        if (gate.rank === 'D') { minMobs = 3; maxMobs = 6; }
+        else if (gate.rank === 'C') { minMobs = 5; maxMobs = 10; }
+        else if (gate.rank === 'B') { minMobs = 7; maxMobs = 13; }
+        else if (gate.rank === 'A') { minMobs = 10; maxMobs = 16; }
+        else if (gate.rank === 'S') { minMobs = 12; maxMobs = 20; }
+        
+        const avgMobsCount = (minMobs + maxMobs) / 2;
+        const sectorsCount = gate.waves || 3;
+
+        // Cumulative stats of monsters and final boss
+        let totalEnemyHp = (enemyHp * avgMobsCount * (sectorsCount - 1)) + gate.boss.hp;
+        let totalEnemyAtk = (enemyAtk * avgMobsCount * (sectorsCount - 1)) + gate.boss.patk;
+        let totalEnemyDef = (enemyDef * avgMobsCount * (sectorsCount - 1)) + gate.boss.def;
+
+        let enemyPower = totalEnemyHp * 1.0 + (totalEnemyAtk * 4.0) + (totalEnemyDef * 3.0);
+
+        // Multipliers based on gate style
+        const gLabel = gate.name.toLowerCase();
+        const isRedGate = gate.dynamicType === 'red_gate' || gLabel.includes("czerwon") || gLabel.includes("red");
+        const isDoubleDungeon = gate.dynamicType === 'double_dungeon' || gLabel.includes("podwój") || gLabel.includes("double");
+        const isDungeonBreak = gate.dynamicType === 'dungeon_break' || gLabel.includes("przełom") || gLabel.includes("break");
+
+        if (isRedGate) enemyPower *= 1.40;
+        if (isDoubleDungeon) enemyPower *= 1.50;
+        if (isDungeonBreak) enemyPower *= 1.25;
+
+        // Ratio analysis
+        let ratio = enemyPower / Math.max(1, partyPower);
+        let prob = Math.min(99, Math.max(1, Math.floor(ratio * 45)));
+
+        return prob;
+    }
+
+    /**
+     * Generates a fully procedural dynamic dungeon, including Red Gates and dungeon breaks.
+     */
+    generateDynamicGate(forceType = null) {
+        const state = window.gameState.state;
+        if (!state) return;
+
+        // Determine rank dynamically based on player level
+        const lvl = state.player.level;
+        let rank = 'E';
+        if (lvl >= 55) {
+            const r = Math.random();
+            rank = r < 0.1 ? 'C' : (r < 0.3 ? 'B' : (r < 0.75 ? 'A' : 'S'));
+        } else if (lvl >= 35) {
+            const r = Math.random();
+            rank = r < 0.2 ? 'D' : (r < 0.45 ? 'C' : (r < 0.85 ? 'B' : 'A'));
+        } else if (lvl >= 20) {
+            const r = Math.random();
+            rank = r < 0.25 ? 'E' : (r < 0.55 ? 'D' : (r < 0.9 ? 'C' : 'B'));
+        } else if (lvl >= 8) {
+            const r = Math.random();
+            rank = r < 0.4 ? 'E' : (r < 0.85 ? 'D' : 'C');
+        } else {
+            rank = Math.random() < 0.8 ? 'E' : 'D';
+        }
+
+        // Randomly build a Solo-Leveling vibe name
+        const prefixes = ["Nieokiełznana", "Skażona", "Pradawna", "Nawiedzona", "Przeklęta", "Glifowa", "Płonąca", "Kryształowa", "Mroźna", "Tajemnicza", "Północna", "Krwawa"];
+        const locations = ["Szczelina", "Krypta", "Otchłań", "Grota", "Jaskinia", "Świątynia", "Zgorzelina", "Równina", "Katastrofa", "Rozpadlina"];
+        const suffixes = ["Cienia", "Cierpienia", "Koszmaru", "Monarchy", "Pustki", "Goblinów", "Rycerzy", "Nieumarłych", "Demonów", "Magii"];
+        
+        const rName = `${prefixes[Math.floor(Math.random()*prefixes.length)]} ${locations[Math.floor(Math.random()*locations.length)]} ${suffixes[Math.floor(Math.random()*suffixes.length)]}`;
+
+        // Determine type: 'standard', 'red_gate' (20% chance), 'dungeon_break' (15% chance)
+        let type = 'standard';
+        if (forceType) {
+            type = forceType;
+        } else {
+            const rType = Math.random();
+            if (rType < 0.22) {
+                type = 'red_gate';
+            } else if (rType < 0.38) {
+                type = 'dungeon_break';
+            }
+        }
+
+        // Pull core templates to scale stats
+        let baseTemplate = this.gates['gate_e_01'];
+        if (rank === 'D') baseTemplate = this.gates['gate_d_01'];
+        else if (rank === 'C') baseTemplate = this.gates['gate_c_01'];
+        else if (rank === 'B') baseTemplate = this.gates['gate_b_01'];
+        else if (rank === 'A') baseTemplate = this.gates['gate_a_01'];
+        else if (rank === 'S') baseTemplate = this.gates['gate_s_01'];
+
+        const gateId = `dynamic_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        const baseSectors = baseTemplate.waves;
+
+        // Compile custom dynamic gate object
+        const dynamicGate = {
+            id: gateId,
+            name: type === 'dungeon_break' ? `🚨 [PRZEŁOM] ${rName}` : (type === 'red_gate' ? `🔴 [CZERWONA] ${rName}` : rName),
+            rank: rank,
+            waves: baseSectors + (type === 'red_gate' || type === 'dungeon_break' ? 1 : 0),
+            recommendedLvl: baseTemplate.recommendedLvl,
+            mobTemplate: JSON.parse(JSON.stringify(baseTemplate.mobTemplate)),
+            boss: JSON.parse(JSON.stringify(baseTemplate.boss)),
+            rewards: JSON.parse(JSON.stringify(baseTemplate.rewards)),
+            isDynamic: true,
+            dynamicType: type
+        };
+
+        // Scale difficulty & rewards based on type
+        if (type === 'red_gate') {
+            dynamicGate.rewards.exp = Math.floor(dynamicGate.rewards.exp * 1.30);
+            dynamicGate.rewards.crystalsMax = Math.floor(dynamicGate.rewards.crystalsMax * 1.50);
+        } else if (type === 'dungeon_break') {
+            dynamicGate.rewards.exp = Math.floor(dynamicGate.rewards.exp * 1.45);
+            dynamicGate.rewards.crystalsMax = Math.floor(dynamicGate.rewards.crystalsMax * 1.80);
+        }
+
+        if (!state.world.dynamicGates) {
+            state.world.dynamicGates = [];
+        }
+        state.world.dynamicGates.push(dynamicGate);
+        window.gameState.save();
+
+        // Inform the player about world occurrences
+        let systemMsg = "";
+        if (type === 'dungeon_break') {
+            systemMsg = `[MELDUNEK TAKTYCZNY - ALARM PRZEŁOMU]\nWykryto groźny PRZEŁOM LOCHU (Ranga ${rank})! Potwory szturmują miasto! Łowco, pomóż w obronie.\n- Wejście jest darmowe i ufundowane przez Stowarzyszenie (Licencja: 0 Złota)\n- Po sukcesie otrzymasz sowitą nagrodę finansową!`;
+        } else if (type === 'red_gate') {
+            systemMsg = `[ANOMALIA PYLONU - CZERWONA BRAMA]\nOdkryto nieliniową CZERWONĄ BRAMĘ (Ranga ${rank})! Zabezpiecz wejście, nim portal zmieni koordynaty. Nagrody za ukończenie są znacznie lepsze.`;
+        } else {
+            systemMsg = `[ASYGNACJA SZCZELINY - NOWA BRAMA]\nWykryto tradycyjną otwartą szczelinę (Ranga ${rank}) w Sektorze Bram. Opłać licencję i zarezerwuj, by zdobyć unikalny loot.`;
+        }
+
+        if (window.uiEngine) {
+            window.uiEngine.showSystemAlert(systemMsg);
+            window.uiEngine.renderGatesTab();
+            window.uiEngine.updateHUD();
+        }
     }
 }
 

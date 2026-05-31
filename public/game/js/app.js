@@ -41,6 +41,14 @@ class App {
             this.ticksCount++;
             const state = window.gameState.state;
 
+            // Passive fatigue decay when not actively fighting in the dungeons
+            if (state.player.fatigue === undefined) state.player.fatigue = 0;
+            if (window.dungeonsSystem && !window.dungeonsSystem.battleActive) {
+                if (state.player.fatigue > 0) {
+                    state.player.fatigue = Math.max(0, state.player.fatigue - 0.25);
+                }
+            }
+
             // Passive health and mana regeneration based on stats (VIT and WIS)
             const playerStats = window.classSystem.calculateDerivedStats(state.player);
             if (state.player.hp === undefined) state.player.hp = playerStats.maxHp;

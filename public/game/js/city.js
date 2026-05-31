@@ -92,6 +92,30 @@ class CitySystem {
         for (let key in window.gameState.state.companions) {
             window.gameState.state.companions[key].talkedToday = false;
         }
+
+        // --- Dungeon Integration: daily cleanups, dungeon breaks penalties, and fresh spawning ---
+        const world = window.gameState.state.world;
+        if (world.dynamicGates && world.dynamicGates.length > 0) {
+            let activeBreaks = world.dynamicGates.filter(g => g.dynamicType === 'dungeon_break');
+            if (activeBreaks.length > 0) {
+                // If the player cannot afford the fine, they go into a gold deficit which is fine for gameplay stakes
+                const fine = activeBreaks.length * 350;
+                window.gameState.spendGold(fine);
+                if (window.uiEngine) {
+                    window.uiEngine.showSystemAlert(`[KATASTROFA MINIĘTEGO PRZEŁOMU]\nZignorowałeś otwarte Przełomy Lochów! Potwory przedostały się częściowo do miasta. Stowarzyszenie powstrzymało inwazję i obciążyło Twój profil kosztem akcji ratunkowej w wysokości ${fine} Sztuk Złota.`);
+                }
+            }
+            // Clear remaining un-claimed dynamic gates
+            world.dynamicGates = [];
+        }
+
+        // Spawn 1 to 3 new random gates
+        if (window.dungeonsSystem) {
+            const numToSpawn = 1 + Math.floor(Math.random() * 2);
+            for (let i = 0; i < numToSpawn; i++) {
+                window.dungeonsSystem.generateDynamicGate();
+            }
+        }
     }
 
     /**

@@ -559,7 +559,15 @@ body {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    width: 180px;
+    width: 260px;
+}
+.hud-bar-row {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+}
+.hud-bar-row .mini-bar {
+    flex: 1;
 }
 .mini-bar {
     position: relative;
@@ -607,18 +615,74 @@ body {
     transition: width 0.3s ease;
     border-radius: 2px;
 }
+.fatigue-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4caf50, #8bc34a); /* green by default, dynamic in js */
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 2px;
+}
 
 .hud-resources {
     display: flex;
-    gap: 25px;
+    gap: 12px;
+    align-items: center;
 }
-.hud-resources .res-item {
-    font-family: var(--font-heading);
-    font-weight: bold;
-    font-size: 13px;
+.hud-pill {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-family: var(--font-heading);
+    font-size: 13px;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+    transition: all 0.25s ease;
+    cursor: default;
+    white-space: nowrap;
+}
+.hud-pill:hover {
+    background: rgba(0, 0, 0, 0.6);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    transform: translateY(-1px);
+}
+.hud-pill.time-pill {
+    border-color: rgba(0, 240, 255, 0.25);
+    background: rgba(0, 240, 255, 0.04);
+}
+.hud-pill.time-pill:hover {
+    border-color: var(--cyan-neon);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+}
+.hud-pill.wallet {
+    border-color: rgba(212, 175, 55, 0.25);
+    background: rgba(212, 175, 55, 0.04);
+}
+.hud-pill.wallet:hover {
+    border-color: #ffd700;
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.15);
+}
+.hud-pill.potions-pill {
+    border-color: rgba(139, 0, 255, 0.25);
+    background: rgba(139, 0, 255, 0.04);
+}
+.hud-pill.potions-pill:hover {
+    border-color: var(--violet-neon);
+    box-shadow: 0 0 10px rgba(139, 0, 255, 0.15);
+}
+.hud-sub-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.hud-sub-separator {
+    color: rgba(255, 255, 255, 0.2);
+    font-weight: 300;
+    margin: 0 2px;
 }
 
 .active-quest-hud {
@@ -1485,6 +1549,36 @@ body {
 /* ========================================== */
 /* 13. RESPONSIVE DESIGN (MEDIA QUERIES)      */
 /* ========================================== */
+
+@media (max-width: 1210px) {
+    #system-hud {
+        padding: 0 10px;
+        gap: 8px;
+        margin: 5px;
+    }
+    .hud-bars {
+        width: 190px !important;
+    }
+    .hud-profile-info .name-class {
+        gap: 6px;
+    }
+    .avatar-hud {
+        width: 35px;
+        height: 35px;
+        font-size: 16px;
+    }
+    .hud-pill {
+        padding: 4px 8px;
+        gap: 6px;
+        font-size: 11px;
+    }
+    .hud-sub-item i {
+        font-size: 11px;
+    }
+    .active-quest-hud {
+        display: none !important;
+    }
+}
 
 @media (max-width: 992px) {
     /* Tablet & Small Desktop layouts */

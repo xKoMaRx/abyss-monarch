@@ -174,28 +174,64 @@
                         <span id="hud-player-class" class="badge">Novice</span>
                     </div>
                     <div class="hud-bars">
-                        <div class="hp-bar-container mini-bar">
-                            <div id="hud-hp-fill" class="hp-fill"></div>
-                            <span id="hud-hp-text">HP: 150/150</span>
+                        <div class="hud-bar-row">
+                            <div class="hp-bar-container mini-bar" data-tooltip="Punkty Zdrowia (HP)">
+                                <div id="hud-hp-fill" class="hp-fill"></div>
+                                <span id="hud-hp-text">HP: 150/150</span>
+                            </div>
+                            <div class="mp-bar-container mini-bar" data-tooltip="Punkty Many (MP)">
+                                <div id="hud-mp-fill" class="mp-fill"></div>
+                                <span id="hud-mp-text">MP: 50/50</span>
+                            </div>
                         </div>
-                        <div class="mp-bar-container mini-bar">
-                            <div id="hud-mp-fill" class="mp-fill"></div>
-                            <span id="hud-mp-text">MP: 50/50</span>
-                        </div>
-                        <div class="exp-bar-container mini-bar">
-                            <div id="hud-exp-fill" class="exp-fill"></div>
-                            <span id="hud-exp-text">EXP: 0/100</span>
+                        <div class="hud-bar-row" style="margin-top: 4px;">
+                            <div class="exp-bar-container mini-bar" data-tooltip="Doświadczenie (EXP)">
+                                <div id="hud-exp-fill" class="exp-fill"></div>
+                                <span id="hud-exp-text">EXP: 0/100</span>
+                            </div>
+                            <div class="fatigue-bar-container mini-bar" data-tooltip="Zmęczenie (Fatigue)&#10;Rośnie o +12 z każdym ukończonym sektorem. Wysokie zmęczenie drastycznie obniża zwinność, def, uniki i szybkość akcji.&#10;Regen: automatycznie poza walką (0.25 pkt/s) lub do 0 podczas snu.">
+                                <div id="hud-fatigue-fill" class="fatigue-fill"></div>
+                                <span id="hud-fatigue-text">FAT: 0/100</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="hud-resources">
-                <div class="res-item" data-tooltip="Złoto (Gold)&#10;Waluta miejska. Używana do opłacania treningów, kupowania zwojów magicznych i prezentów oraz wynajmu najemników."><i class="fa-solid fa-coins gold-text"></i> <span id="hud-gold">500</span> G</div>
-                <div class="res-item" data-tooltip="Kryształy Mana (Mana Crystals)&#10;Zdobywane z bossów w Bramach. Sprzedaj je w Stowarzyszeniu Łowców za złoto (1 kryształ = 10 G)."><i class="fa-solid fa-gem crystal-text"></i> <span id="hud-crystals">0</span> Rdzenie</div>
-                <div class="res-item" data-tooltip="Czas i Cykl Dobowy&#10;Doba trwa 24 godziny. Dzień: 06:00 - 18:00 | Noc: 18:00 - 06:00.&#10;Czas upływa przy akcjach miejskich. Pora dobi wpływa na obecność NPC."><i class="fa-solid fa-cloud-moon time-text"></i> Dzień <span id="hud-day">1</span> (<span id="hud-time">08:00</span>)</div>
-                <div class="res-item" data-tooltip="Mikstury Zdrowia (HP)&#10;Używane automatycznie w lochach Bramy, gdy HP postaci w drużynie spadnie poniżej 35%. Przywraca 40% maksymalnego HP. Kupisz je w Dzielnicy Handlowej."><i class="fa-solid fa-flask" style="color: #f44336;"></i> <span id="hud-hp-potions-count">0</span> HP</div>
-                <div class="res-item" data-tooltip="Mikstury Many (MP)&#10;Używane automatycznie w lochach Bramy, gdy MP postaci w drużynie spadnie poniżej 20%. Przywraca 40% maksymalnego MP. Kupisz je w Dzielnicy Handlowej."><i class="fa-solid fa-flask" style="color: #2196f3;"></i> <span id="hud-mp-potions-count">0</span> MP</div>
+                <!-- SEGMENT 1: CZAS I CYKL DOBOWY (Zegar) -->
+                <div class="hud-pill time-pill" data-tooltip="Czas i Cykl Dobowy&#10;Doba trwa 24 godziny. Dzień: 06:00 - 18:00 | Noc: 18:00 - 06:00.&#10;Czas upływa przy akcjach miejskich i treningach. Pora dobi wpływa na dostępność postaci i sklepów w mieście.">
+                    <i class="fa-solid fa-cloud-moon time-text" style="color: var(--cyan-neon);"></i>
+                    <span>Dzień <span id="hud-day" class="cyan-neon font-bold">1</span></span>
+                    <span class="hud-sub-separator">|</span>
+                    <span id="hud-time" class="font-bold text-white">08:00</span>
+                </div>
+
+                <!-- SEGMENT 2: WALUTY (Złoto i Kryształy Many) -->
+                <div class="hud-pill wallet" data-tooltip="Skarbiec i Waluty łowcy&#10;Złoto (G): Płatności miejskie, treningi, prezenty i najemnicy.&#10;Kryształy Many: Pozyskiwane z bossów w bramach. Możesz je spieniężyć w Stowarzyszeniu Łowców za złoto (1 kryształ = 10 G).">
+                    <div class="hud-sub-item">
+                        <i class="fa-solid fa-coins" style="color: #ffca28;"></i>
+                        <span id="hud-gold" class="gold-text font-bold">500</span> <span class="gold-text" style="font-size: 10px; opacity: 0.85;">G</span>
+                    </div>
+                    <span class="hud-sub-separator">/</span>
+                    <div class="hud-sub-item">
+                        <i class="fa-solid fa-gem" style="color: #e040fb;"></i>
+                        <span id="hud-crystals" class="crystal-text font-bold">0</span> <span class="crystal-text" style="font-size: 10px; opacity: 0.85;">Kryształy</span>
+                    </div>
+                </div>
+
+                <!-- SEGMENT 3: MIKSTURY (HP i MP skondensowane) -->
+                <div class="hud-pill potions-pill" data-tooltip="Mikstury Taktyczne drużyny&#10;Używane automatycznie podczas walki w Bramie: HP gdy zdrowie spadnie poniżej 35% (leczy 40% HP); MP gdy mana spadnie poniżej 20% (odnawia 40% MP). Dokupisz je u handlarza w Dzielnicy Handlowej.">
+                    <div class="hud-sub-item">
+                        <i class="fa-solid fa-flask" style="color: #f44336; filter: drop-shadow(0 0 3px rgba(244,67,54,0.4));"></i>
+                        <span id="hud-hp-potions-count" class="font-bold text-red-400">0</span> <span style="font-size: 10px; color: #888; margin-left: 1px;">HP</span>
+                    </div>
+                    <span class="hud-sub-separator">|</span>
+                    <div class="hud-sub-item">
+                        <i class="fa-solid fa-flask" style="color: #2196f3; filter: drop-shadow(0 0 3px rgba(33,150,243,0.4));"></i>
+                        <span id="hud-mp-potions-count" class="font-bold text-blue-400">0</span> <span style="font-size: 10px; color: #888; margin-left: 1px;">MP</span>
+                    </div>
+                </div>
             </div>
 
             <div class="active-quest-hud glass-panel" data-tooltip="Aktywne Zadanie Gracza&#10;Wykonuj polecenia systemu łowców, aby zdobywać nagrody i odblokowywać nowe relacje w mieście.">
@@ -480,7 +516,8 @@
                                             <li style="font-size: 11px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.02);" data-tooltip="Obrona fizyczna (DEF). Procentowo redukuje fizyczne obrażenia zadawane przez wrogów. Zależy od VIT i STR.">Obrona (DEF): <span id="char-derived-def" class="glowing-text cyan-neon">5</span></li>
                                             <li style="font-size: 11px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.02);" data-tooltip="Szansa na całkowite uniknięcie ataku wroga. Maksymalnie 30%. Zależy od DEX.">Uniki (Dodge): <span id="char-derived-dodge" class="glowing-text cyan-neon">5%</span></li>
                                             <li style="font-size: 11px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.02);" data-tooltip="Szansa na zadanie ciosu krytycznego (zwiększone obrażenia). Maksymalnie 60%. Zależy od DEX, LUK i talentu.">Kryt (Crit): <span id="char-derived-crit" class="glowing-text cyan-neon">5%</span></li>
-                                            <li style="font-size: 11px; padding: 4px 0;" data-tooltip="Skrócenie czasu odnowienia skilli (Cooldown Red). Maksymalnie 40%. Zależy od WIS, DEX i talentu.">Cooldowny (Haste): <span id="char-derived-cd" class="glowing-text cyan-neon">0%</span></li>
+                                            <li style="font-size: 11px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.02);" data-tooltip="Skrócenie czasu odnowienia skilli (Cooldown Red). Maksymalnie 40%. Zależy od WIS, DEX i talentu.">Cooldowny (Haste): <span id="char-derived-cd" class="glowing-text cyan-neon">0%</span></li>
+                                            <li style="font-size: 11px; padding: 4px 0;" data-tooltip="Zmęczenie bohatera (Fatigue). Rośnie wraz z każdą walką. Zmniejsza uniki, obronę oraz prędkość (haste) i zwinność o maksymalnie 70%! Oczyszczane przez sen w Domu.">Zmęczenie (Fatigue): <span id="char-derived-fatigue" class="glowing-text">0 / 100</span></li>
                                         </ul>
                                     </div>
 
@@ -600,6 +637,127 @@
                     <p id="system-alert-text">Zostałeś pomyślnie przebudzony.</p>
                 </div>
                 <p class="tap-close">Kliknij, aby zamknąć</p>
+            </div>
+        </div>
+
+        <!-- RAID PREPARATION MODAL -->
+        <div id="raid-prep-modal" class="modal-overlay hidden">
+            <div class="start-box glass-panel violet-neon-border" style="max-width: 600px; text-align: left; padding: 25px;">
+                <h3 class="glowing-text cyan-neon" style="font-size: 18px; margin-bottom: 5px; border-bottom: 1px dashed rgba(0, 243, 255, 0.3); padding-bottom: 8px;">
+                    <i class="fa-solid fa-file-signature" style="margin-right: 8px;"></i>FAZA PRZYGOTOWANIA DO RAJDU
+                </h3>
+                
+                <div style="margin: 15px 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span id="prep-gate-name" style="font-size: 14px; font-weight: bold; color: #fff;">Zabłocone Jaskinie Zombie</span>
+                        <span id="prep-gate-type-badge" class="badge" style="background: var(--violet-neon);">Standardowa</span>
+                    </div>
+                    <p id="prep-gate-desc" style="font-size: 11px; color: var(--text-muted); margin-bottom: 15px; line-height: 1.4;">
+                        Bezpieczeństwo rezerwacji Bramy zależy od wykupionej licencji uprawniającej do wejścia.
+                    </p>
+
+                    <h4 style="font-size: 11px; color: var(--cyan-neon); margin-top: 15px; margin-bottom: 5px; text-transform: uppercase; tracking: 1px;">
+                        <i class="fa-solid fa-chart-line"></i> Briefing Taktyczny Systemu
+                    </h4>
+                    <div style="background: rgba(0,0,0,0.4); padding: 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05); font-size: 11px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                            <span>Poziom Bramy: Ranga <span id="prep-gate-rank" class="rank rank-E">E</span></span>
+                            <span>Zalecany Poziom: <span id="prep-rec-lvl" class="cyan-neon">Lvl 1</span></span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                            <span>Twój Aktualny Poziom: <span id="prep-player-lvl" class="cyan-neon">Lvl 1</span></span>
+                            <span>Skład drużyny: <span id="prep-party-count" class="cyan-neon">1 łowca</span></span>
+                        </div>
+                    </div>
+
+                    <h4 style="font-size: 11px; color: #ff3333; margin-top: 15px; margin-bottom: 5px; text-transform: uppercase;">
+                        <i class="fa-solid fa-skull-crossbones"></i> Analiza Prawdopodobieństwa Śmierci
+                    </h4>
+                    <div style="background: rgba(40,0,0,0.3); padding: 10px; border-radius: 4px; border: 1px solid rgba(255,50,50,0.15)">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-size: 11px;">
+                            <span>Ryzyko zgonu w tym lochu:</span>
+                            <span id="prep-death-probability" style="font-weight: bold; color: #ff3333;">0%</span>
+                        </div>
+                        <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.5); border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+                            <div id="prep-death-bar-fill" style="width: 0%; height: 100%; background: #ff3333; transition: width 0.3s ease;"></div>
+                        </div>
+                        <p id="prep-death-verdict" style="font-size: 10px; color: var(--text-muted); margin-top: 6px; line-height: 1.3;">
+                            Weryfikacja...
+                        </p>
+                    </div>
+
+                    <h4 style="font-size: 11px; color: var(--cyan-neon); margin-top: 15px; margin-bottom: 5px; text-transform: uppercase;">
+                        <i class="fa-solid fa-coins"></i> Formalności stowarzyszenia
+                    </h4>
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 4px; border: 1px dashed rgba(255,255,255,0.08); font-size: 11px;">
+                        <div>
+                            <span>Licencja Stowarzyszenia:</span>
+                            <div id="prep-license-status" style="font-weight: bold; color: #ff3333; margin-top: 2px;">NIEOPŁACONA</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="color: var(--text-muted);">Koszt licencji rajdu:</span>
+                            <div id="prep-license-cost" style="font-size: 14px; font-weight: bold; color: gold;">100 Złota</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 20px;">
+                    <button id="prep-buy-license-btn" class="neon-btn gold-btn" onclick="window.uiEngine.executeBuyLicense()" style="width: 100%; padding: 10px; font-weight: bold;">
+                        <i class="fa-solid fa-coins"></i> OPŁAĆ LICENCJĘ I ZAREZERWUJ BRAMĘ
+                    </button>
+                    <button id="prep-enter-btn" class="neon-btn cyan-btn" onclick="window.uiEngine.executeEnterGate()" style="width: 100%; padding: 10px; font-weight: bold;" disabled>
+                        <i class="fa-solid fa-shoe-prints"></i> WEJDŹ DO BRAMY (PUNKT BEZ POWROTU)
+                    </button>
+                    <button class="neon-btn gray-btn" onclick="window.uiEngine.closeRaidPrep()" style="width: 100%; padding: 10px; border-color: rgba(255,255,255,0.15); color: #ccc;">
+                        ANULUJ PRZYGOTOWANIE
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- EMERGENCY ESCAPE PAUSE PROMPT -->
+        <div id="escape-prompt-modal" class="modal-overlay hidden" style="z-index: 2000; background: rgba(5, 0, 0, 0.95);">
+            <div class="start-box glass-panel" style="border-color: #ff3333; box-shadow: 0 0 45px rgba(255, 0, 0, 0.4); max-width: 500px; text-align: center; margin: auto;">
+                <div style="font-size: 40px; color: #ff3333; animation: pulseText 1.5s infinite; margin-bottom: 15px;">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <h3 class="glowing-text" style="color: #ff3333; font-size: 18px; line-height: 1.3;">🚨 KRYTYCZNY STATUS ŻYCIOWY! 🚨</h3>
+                <p style="font-size: 12px; color: #ff9999; margin: 15px 0 20px 0; line-height: 1.5; text-align: left;">
+                    Poziom punktów życia Twojego łowcy spadł poniżej <span style="font-weight: bold; color: #fff;">10%</span>! <br><br>
+                    Dalsza walka z hordą niesie ze sobą ogromne ryzyko <strong>trwałego zgonu</strong>. Zgodnie z traktatem Stowarzyszenia, możesz podjąć próbę natychmiastowej ewakuacji z lochu przy użyciu Kryształu Powrotu.
+                    <br><br>
+                    <span style="color: #fff; font-weight: bold;">SKUTEK UCIECZKI:</span> Gra zostanie cofnięta do automatycznego zapisu sprzed przekroczenia progu lochów (odzyskasz opłaconą licencję i zdrowie, ale wszystkie łupy i zabójstwa z tego rajdu przepadną).
+                </p>
+
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button class="neon-btn" onclick="window.uiEngine.executeEscapeDungeon()" style="background: rgba(220, 20, 60, 0.3); border-color: #ff3333; color: #fff; padding: 12px; font-weight: bold; cursor: pointer; border-radius: 4px; border: 1px solid;">
+                        <i class="fa-solid fa-person-running"></i> UŻYJ KRYSZTAŁU POWROTU (BEZPIECZNA UCIECZKA)
+                    </button>
+                    <button class="neon-btn" onclick="window.uiEngine.executeContinueFight()" style="background: rgba(10,10,10,0.5); border-color: rgba(255,255,255,0.3); color: #ccc; padding: 10px; cursor: pointer; border-radius: 4px; border: 1px solid;">
+                        WALCZĘ DALEJ (RYZYKUJĘ ŚMIERĆ!)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PERMANENT DEATH OVERLAY MODAL -->
+        <div id="death-screen-modal" class="modal-overlay hidden" style="z-index: 3000; background: rgba(0, 0, 0, 1.0); flex-direction: column; justify-content: center; align-items: center;">
+            <div class="start-box glass-panel" style="border-color: #ff1111; box-shadow: 0 0 60px rgba(255, 0, 0, 0.6); max-width: 550px; text-align: center; background: rgba(5, 5, 5, 0.95);">
+                <div style="font-size: 55px; color: #ff1111; animation: pulseText 1.2s infinite; margin-bottom: 20px;">
+                    <i class="fa-solid fa-skull"></i>
+                </div>
+                <h2 class="glowing-text" style="color: #ff1111; font-size: 24px; letter-spacing: 2px;">TWÓJ BOHATER POLEGŁ</h2>
+                <h4 style="color: #ccc; font-size: 11px; margin-top: 5px; text-transform: uppercase;">Status monarchów: Zgładzony w Otchłani</h4>
+                
+                <p style="font-size: 12px; color: #999; margin: 20px 0 25px 0; line-height: 1.6; text-align: left; padding: 0 10px; border-left: 2px solid #ff1111;">
+                    Twoje punkty zdrowia spadły do zera. Według uniwersalnych zasad świata łowców, zgon wewnątrz portalu bez ucieczki jest definitywny. Mroczna aura lochu pochłonęła rdzeń energetyczny Twojej postaci.
+                    <br><br>
+                    Na szczęście system zapisał strukturę Twojego bytu w bezpiecznej strefie bezpośrednio przed wejściem do tej Bramy. Możesz przywrócić go do tamtego momentu.
+                </p>
+
+                <button class="neon-btn" onclick="window.uiEngine.executeRestoreBackupAndRevive()" style="width: 100%; background: #ff1111; border-color: #ff3333; color: #fff; padding: 14px; font-weight: bold; border-radius: 4px; box-shadow: 0 0 20px rgba(255,0,0,0.5); border: 2px solid; cursor: pointer;">
+                    <i class="fa-solid fa-clock-rotate-left"></i> COFNIJ CZAS (WCZYTAJ ZAPIS PRZED BRAMĄ)
+                </button>
             </div>
         </div>
 

@@ -210,6 +210,24 @@ class UIEngine {
         document.getElementById('hud-exp-text').innerText = `EXP: ${player.exp}/${player.expNeeded}`;
         document.getElementById('hud-exp-fill').style.width = `${(player.exp / player.expNeeded) * 100}%`;
 
+        // Fatigue bar update
+        const fatigueVal = player.fatigue !== undefined ? player.fatigue : 0;
+        const fatigueText = document.getElementById('hud-fatigue-text');
+        if (fatigueText) fatigueText.innerText = `FAT: ${Math.round(fatigueVal)}/100`;
+        const fatigueFill = document.getElementById('hud-fatigue-fill');
+        if (fatigueFill) fatigueFill.style.width = `${fatigueVal}%`;
+        
+        // Show indicator on the fatigue fill based on severity
+        if (fatigueFill) {
+            if (fatigueVal > 75) {
+                fatigueFill.style.background = 'linear-gradient(90deg, #f44336, #b71c1c)'; // Deep Red
+            } else if (fatigueVal > 40) {
+                fatigueFill.style.background = 'linear-gradient(90deg, #ff9800, #ff5722)'; // Orange
+            } else {
+                fatigueFill.style.background = 'linear-gradient(90deg, #4caf50, #8bc34a)'; // Green
+            }
+        }
+
         // Set dynamic hover tooltips for the bars
         const hpRegen = Math.max(1, Math.floor(player.stats.vit * 0.08));
         const mpRegen = Math.max(1, Math.floor(player.stats.wis * 0.08));
@@ -225,6 +243,11 @@ class UIEngine {
         const expBar = document.querySelector('.exp-bar-container');
         if (expBar) {
             expBar.setAttribute('data-tooltip', `Punkty Doświadczenia (EXP): ${player.exp}/${player.expNeeded}\nRozbijaj lochy Bram i wykonuj treningi, by awansować i zyskać 5 punktów statystyk.`);
+        }
+        const fatigueBar = document.querySelector('.fatigue-bar-container');
+        if (fatigueBar) {
+            const fatiguePenaltyText = fatigueVal > 0 ? `\n\nAKTYWNE KARY:\n- Szybkość ładowania akcji: -${Math.round((1 - Math.max(0.3, 1 - fatigueVal * 0.007)) * 100)}%\n- Uniki i Zwinność: -${Math.round((1 - Math.max(0.3, 1 - fatigueVal * 0.007)) * 100)}%\n- Atak i Obrona: -${Math.round((1 - Math.max(0.75, 1 - fatigueVal * 0.0025)) * 100)}%` : '\n\nBrak aktywnych kar (W pełni wypoczęty!)';
+            fatigueBar.setAttribute('data-tooltip', `Zmęczenie (Fatigue): ${Math.round(fatigueVal)}/100\nRośnie o +12 na każdy sektor w Bramach.\nRegeneruje się automatycznie poza walką (0.25 pkt/s) oraz do 0 przy śnie w Domu.${fatiguePenaltyText}`);
         }
 
         document.getElementById('hud-gold').innerText = state.inventory.gold;
@@ -495,7 +518,7 @@ class UIEngine {
         } else if (locId === 'association') {
             actionsArea.innerHTML = `
                 <div class="location-action-card glass-panel">
-                    <h4><i class="fa-solid fa-arrows-rotate"></i> Wymiana Rdzeni Mana</h4>
+                    <h4><i class="fa-solid fa-arrows-rotate"></i> Wymiana Kryształów Many</h4>
                     <p>Sprzedaj zdobyte w Bramach kryształy na legalne Złoto Stowarzyszenia. Kurs: 1 Kryształ = 10 Gold.</p>
                     <button class="neon-btn cyan-btn" onclick="window.uiEngine.executeSellCrystals()">SPRZEDAJ WSZYSTKO</button>
                 </div>
@@ -595,11 +618,12 @@ class UIEngine {
         
         state.player.hp = playerStats.maxHp;
         state.player.mp = playerStats.maxMp;
+        state.player.fatigue = 0;
         
         window.citySystem.advanceTime(8);
         window.gameState.save();
 
-        this.showSystemAlert(`[ZREGENEROWANO]\nPrzespałeś się 8 godzin w swoim mieszkaniu.\nTwoje HP oraz MP zostały w pełni odnowione!`);
+        this.showSystemAlert(`[ZREGENEROWANO]\nPrzespałeś się 8 godzin w swoim mieszkaniu.\nTwoje HP, MP oraz Zmęczenie (Fatigue) zostały w pełni oczyszczone i odnowione!`);
         this.enterCityLocation('home');
     }
 
@@ -779,7 +803,7 @@ class UIEngine {
     executeSellCrystals() {
         const state = window.gameState.state;
         if (state.inventory.manaCrystals <= 0) {
-            alert('Nie posiadasz żadnych rdzeni mana kryształów do sprzedaży.');
+            alert('Nie posiadasz żadnych kryształów many do sprzedaży.');
             return;
         }
 
@@ -1006,6 +1030,24 @@ class UIEngine {
             document.getElementById('char-derived-dodge').innerText = `${derived.dodge.toFixed(1)}%`;
             document.getElementById('char-derived-crit').innerText = `${derived.critRate.toFixed(1)}%`;
             document.getElementById('char-derived-cd').innerText = `${derived.cooldownRed.toFixed(1)}%`;
+
+            const fatDisplay = document.getElementById('char-derived-fatigue');
+            if (fatDisplay) {
+                if (selectedId === 'player') {
+                    const fatig = Math.round(char.fatigue !== undefined ? char.fatigue : 0);
+                    fatDisplay.innerText = `${fatig} / 100`;
+                    if (fatig > 75) {
+                        fatDisplay.className = "glowing-text text-red-500 font-bold";
+                    } else if (fatig > 40) {
+                        fatDisplay.className = "glowing-text text-orange-500 font-bold";
+                    } else {
+                        fatDisplay.className = "glowing-text text-green-400 font-bold";
+                    }
+                } else {
+                    fatDisplay.innerText = "N/A (Companion)";
+                    fatDisplay.className = "glowing-text text-gray-500";
+                }
+            }
 
             const pointsNotify = document.getElementById('player-stat-points-notification');
             const strPlus = document.getElementById('player-stat-upgrade-str');
@@ -1513,30 +1555,111 @@ class UIEngine {
     /**
      * WIDOK 4: BRAMY I COMBAT ENGINE RENDEROWANIE
      */
+    /**
+     * WIDOK 4: BRAMY I COMBAT ENGINE RENDEROWANIE
+     */
     renderGatesTab() {
         const state = window.gameState.state;
         const container = document.getElementById('gates-list-container');
+        if (!container) return;
         container.innerHTML = '';
 
+        // Combine static Gates and Dynamic Gates
+        const allGates = [];
+        
+        // Add static unlocked gates
         for (let gateId in window.dungeonsSystem.gates) {
             const gate = window.dungeonsSystem.gates[gateId];
-            const isUnlocked = state.world.unlockedGates.includes(gateId);
+            allGates.push({
+                id: gateId,
+                name: gate.name,
+                rank: gate.rank,
+                waves: gate.waves,
+                recommendedLvl: gate.recommendedLvl,
+                mobTemplate: gate.mobTemplate,
+                boss: gate.boss,
+                isUnlocked: state.world.unlockedGates.includes(gateId),
+                isDynamic: false
+            });
+        }
+
+        // Add dynamically spawned active gates
+        if (state.world.dynamicGates) {
+            state.world.dynamicGates.forEach(g => {
+                allGates.push({
+                    id: g.id,
+                    name: g.name,
+                    rank: g.rank,
+                    waves: g.waves,
+                    recommendedLvl: g.recommendedLvl,
+                    mobTemplate: g.mobTemplate,
+                    boss: g.boss,
+                    isUnlocked: true, // Dynamic gates are always visible when spawned
+                    isDynamic: true,
+                    dynamicType: g.dynamicType
+                });
+            });
+        }
+
+        // Sort: Active gate first, then unlocked, then rank sequence (S, A, B, C, D, E)
+        const rankValue = { 'S': 6, 'A': 5, 'B': 4, 'C': 3, 'D': 2, 'E': 1 };
+        allGates.sort((a, b) => {
+            const aActive = state.world.currentGate === a.id ? 1 : 0;
+            const bActive = state.world.currentGate === b.id ? 1 : 0;
+            if (aActive !== bActive) return bActive - aActive;
+
+            if (a.isUnlocked !== b.isUnlocked) return b.isUnlocked ? 1 : -1;
+
+            return rankValue[b.rank] - rankValue[a.rank];
+        });
+
+        allGates.forEach(gate => {
+            const gateId = gate.id;
+            const isUnlocked = gate.isUnlocked;
             const isActive = state.world.currentGate === gateId ? 'active-run' : '';
+            const isReserved = state.world.reservedGates[gateId] ? true : false;
             
+            // Build visual metadata
+            let typeBadge = "Standardowa";
+            let colorAccent = "var(--violet-neon)";
+            if (gate.isDynamic) {
+                if (gate.dynamicType === 'red_gate') {
+                    typeBadge = "Czerwona Brama";
+                    colorAccent = "#ff3333";
+                } else if (gate.dynamicType === 'dungeon_break') {
+                    typeBadge = "Przełom Lochu";
+                    colorAccent = "#ff9100";
+                }
+            }
+
             if (isUnlocked) {
-                const tooltipText = `Brama: ${gate.name} (Ranga ${gate.rank})&#10;Liczba sekcji lochu: ${gate.waves}&#10;Zwykli przeciwnicy: ${gate.mobTemplate.name} (HP: ${gate.mobTemplate.hp}, ATK: ${gate.mobTemplate.patk})&#10;Boss obszaru: ${gate.boss.name} (HP: ${gate.boss.hp}, ATK: ${gate.boss.patk})&#10;Poziom lochu generuje proceduralne typy bram (np. Czerwone Bramy, Podwójne Lochy) z dodatkowym lootem!`;
+                const tooltipText = `Brama: ${gate.name} (Ranga ${gate.rank})&#10;Styl: ${typeBadge}&#10;Sektory do przejścia: ${gate.waves}&#10;Zwykli wrogowie: ${gate.mobTemplate.name} (HP: ${gate.mobTemplate.hp}, ATK: ${gate.mobTemplate.patk})&#10;Boss główny: ${gate.boss.name} (HP: ${gate.boss.hp}, ATK: ${gate.boss.patk})&#10;Płać licencję u wejścia, by zarezerwować.`;
                 
+                // Show license status label on the card
+                let licenseLabel = "";
+                if (gate.dynamicType === 'dungeon_break') {
+                    licenseLabel = `<span style="color: #4caf50; font-size: 10px; font-weight: bold; background: rgba(76,175,80,0.15); padding: 2px 6px; border-radius: 3px;">Darmowy Przełom</span>`;
+                } else if (isReserved) {
+                    licenseLabel = `<span style="color: #4caf50; font-size: 10px; font-weight: bold; background: rgba(76,175,80,0.15); padding: 2px 6px; border-radius: 3px;">Zarezerwowana</span>`;
+                } else {
+                    licenseLabel = `<span style="color: #ff3333; font-size: 10px; font-weight: bold; background: rgba(255,51,51,0.12); padding: 2px 6px; border-radius: 3px;">Wymaga Licencji</span>`;
+                }
+
                 container.innerHTML += `
                     <div class="gate-card ${isActive}" data-tooltip="${tooltipText}">
                         <div class="header-gate">
-                            <h4>${gate.name}</h4>
+                            <h4 style="color: ${gate.dynamicType === 'red_gate' ? '#ff3333' : '#fff'}">${gate.name}</h4>
                             <span class="rank rank-${gate.rank}">${gate.rank}</span>
                         </div>
-                        <div class="rec-lvl">Rekomendowany Poziom: Lvl ${gate.recommendedLvl}</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span class="badge" style="background: ${colorAccent}; margin: 0; font-size: 8px;">${typeBadge}</span>
+                            ${licenseLabel}
+                        </div>
+                        <div class="rec-lvl">Zalecany Poziom: Lvl ${gate.recommendedLvl}</div>
                         
                         ${state.world.currentGate === gateId ? 
                             `<button class="neon-btn violet-btn" style="background: rgba(139,0,255,0.4);" disabled>AKTYWNY RAJD...</button>` :
-                            `<button class="neon-btn cyan-btn" onclick="window.uiEngine.executeStartRaid('${gateId}')">ROZPOCZNIJ RAJD</button>`
+                            `<button class="neon-btn cyan-btn" onclick="window.uiEngine.openRaidPrep('${gateId}')">PRZYGOTUJ SIĘ</button>`
                         }
                     </div>
                 `;
@@ -1556,7 +1679,7 @@ class UIEngine {
                     </div>
                 `;
             }
-        }
+        });
 
         const emptyMsg = document.getElementById('empty-battle-message');
         const activeView = document.getElementById('active-battle-view');
@@ -1565,7 +1688,10 @@ class UIEngine {
             emptyMsg.classList.add('hidden');
             activeView.classList.remove('hidden');
 
-            const gate = window.dungeonsSystem.gates[state.world.currentGate];
+            let gate = window.dungeonsSystem.gates[state.world.currentGate];
+            if (!gate && state.world.dynamicGates) {
+                gate = state.world.dynamicGates.find(g => g.id === state.world.currentGate);
+            }
             const system = window.dungeonsSystem;
             
             // Render gate name and include Red Gate / Double Dungeon prefix indicators
@@ -1577,10 +1703,13 @@ class UIEngine {
             } else if (system.gateType === 'double_dungeon') {
                 typePrefix = "👁️ [Podwójny Loch] ";
                 typeColor = "#d500f9";
+            } else if (system.gateType === 'dungeon_break') {
+                typePrefix = "🚨 [Przełom Lochu] ";
+                typeColor = "#ff9100";
             }
             
             const gateNameEl = document.getElementById('battle-gate-name');
-            if (gateNameEl) {
+            if (gateNameEl && gate) {
                 gateNameEl.style.color = typeColor;
                 gateNameEl.innerText = typePrefix + gate.name;
             }
@@ -1661,12 +1790,247 @@ class UIEngine {
         }
     }
 
-    executeStartRaid(gateId) {
+    /**
+     * OPENS THE DETAILED RAID BRIEFING / PREPARATION DIALOG
+     */
+    openRaidPrep(gateId) {
+        this.selectedPrepGateId = gateId;
+        const state = window.gameState.state;
+        
+        let gate = window.dungeonsSystem.gates[gateId];
+        if (!gate && state.world.dynamicGates) {
+            gate = state.world.dynamicGates.find(g => g.id === gateId);
+        }
+        if (!gate) return;
+
+        // Visual properties
+        let typeText = "Standardowa";
+        let badgeBg = "var(--violet-neon)";
+        let textDesc = "Wysoce niestabilne skupisko potworów. Aby wejść do środka, Stowarzyszenie wymaga oficjalnej licencji i autoryzacji ubezpieczeniowej.";
+        
+        if (gate.isDynamic) {
+            if (gate.dynamicType === 'red_gate') {
+                typeText = "Czerwona Brama";
+                badgeBg = "#ff3333";
+                textDesc = "Ekstremalnie niebezpieczna szczelina o podwyższonej gęstości magicznej. Nieopatrznemu wejściu towarzyszy ryzyko mutacji bossów.";
+            } else if (gate.dynamicType === 'dungeon_break') {
+                typeText = "Przełom Lochu";
+                badgeBg = "#ff9100";
+                textDesc = "Mankament integralności portalu! Stowarzyszenie w pełni sponsoruje wyprawę w celu ratowania miasta. Brak opłat licencyjnych.";
+            }
+        }
+
+        // Set text properties
+        document.getElementById('prep-gate-name').innerText = gate.name;
+        document.getElementById('prep-gate-type-badge').innerText = typeText;
+        document.getElementById('prep-gate-type-badge').style.background = badgeBg;
+        document.getElementById('prep-gate-desc').innerText = textDesc;
+
+        // Briefing values
+        const rankEl = document.getElementById('prep-gate-rank');
+        rankEl.innerText = gate.rank;
+        rankEl.className = `rank rank-${gate.rank}`;
+
+        document.getElementById('prep-rec-lvl').innerText = `Lvl ${gate.recommendedLvl}`;
+        document.getElementById('prep-player-lvl').innerText = `Lvl ${state.player.level}`;
+
+        const activePartyCount = state.party ? state.party.length : 1;
+        document.getElementById('prep-party-count').innerText = `${activePartyCount} łowców (Drużyna)`;
+
+        // Predict death danger percentage
+        const deathRatio = window.dungeonsSystem.calculateDeathProbability(gateId);
+        const deathTextEl = document.getElementById('prep-death-probability');
+        deathTextEl.innerText = `${deathRatio}%`;
+
+        const deathBar = document.getElementById('prep-death-bar-fill');
+        deathBar.style.width = `${deathRatio}%`;
+
+        let verdict = "Bezpieczne warunki. Poziom przygotowania Twoich łowców gwarantuje pełne panowanie nad hordą.";
+        if (deathRatio > 80) {
+            verdict = "🚨 SAMOBÓJSTWO! Twoi łowcy nie przeżyją nawet pierwszej minuty! Wytrwale trenuj lub zwerbuj najemników przed wejściem!";
+            deathTextEl.style.color = "#ff1111";
+        } else if (deathRatio > 55) {
+            verdict = "⚠️ BARDZO WYSOKIE RYZYKO! Przeciwnicy drastycznie przewyższają Cię obroną i siłą. Prawdopodobieństwo śmierci jest zatrważające.";
+            deathTextEl.style.color = "#ff3333";
+        } else if (deathRatio > 35) {
+            verdict = "Umiarkowane niebezpieczeństwo. Przeciwnik może okazać się wyzwaniem. Zaopatrz się w mikstury leczące.";
+            deathTextEl.style.color = "gold";
+        } else if (deathRatio > 15) {
+            verdict = "Niskie niebezpieczeństwo. Twoja przewaga poziomowa minimalizuje błędy.";
+            deathTextEl.style.color = "#4caf50";
+        } else {
+            deathTextEl.style.color = "#4caf50";
+        }
+        document.getElementById('prep-death-verdict').innerText = verdict;
+
+        // License fee costs
+        const rankCosts = { 'E': 120, 'D': 450, 'C': 1600, 'B': 4200, 'A': 12500, 'S': 38000 };
+        const licenseCost = gate.dynamicType === 'dungeon_break' ? 0 : (rankCosts[gate.rank] || 100);
+        document.getElementById('prep-license-cost').innerText = `${licenseCost} Złota`;
+
+        // Check paid status
+        const isReserved = state.world.reservedGates && state.world.reservedGates[gateId];
+        const isFree = gate.dynamicType === 'dungeon_break';
+        const licenseStatusEl = document.getElementById('prep-license-status');
+        const buyBtn = document.getElementById('prep-buy-license-btn');
+        const enterBtn = document.getElementById('prep-enter-btn');
+
+        if (isReserved || isFree) {
+            licenseStatusEl.innerText = isFree ? "SPONSOROWANE (0 ZŁOTA)" : "OPŁACONA / ZAREZERWOWANA";
+            licenseStatusEl.style.color = "#4caf50";
+            buyBtn.style.display = 'none';
+            enterBtn.disabled = false;
+        } else {
+            licenseStatusEl.innerText = "NIEOPŁACONA - WYMAGANY ZAKUP";
+            licenseStatusEl.style.color = "#ff3333";
+            buyBtn.style.display = 'block';
+            enterBtn.disabled = true;
+        }
+
+        // Display panel
+        document.getElementById('raid-prep-modal').classList.remove('hidden');
+    }
+
+    /**
+     * CLOSES BRIEFING MODAL
+     */
+    closeRaidPrep() {
+        document.getElementById('raid-prep-modal').classList.add('hidden');
+        this.selectedPrepGateId = null;
+    }
+
+    /**
+     * ATTEMPTS TO PURCHASE A RAID ACCESS LICENSE FOR GOLD
+     */
+    executeBuyLicense() {
+        const state = window.gameState.state;
+        const gateId = this.selectedPrepGateId;
+        if (!gateId) return;
+
+        let gate = window.dungeonsSystem.gates[gateId];
+        if (!gate && state.world.dynamicGates) {
+            gate = state.world.dynamicGates.find(g => g.id === gateId);
+        }
+        if (!gate) return;
+
+        const rankCosts = { 'E': 120, 'D': 450, 'C': 1600, 'B': 4200, 'A': 12500, 'S': 38000 };
+        const cost = gate.dynamicType === 'dungeon_break' ? 0 : (rankCosts[gate.rank] || 100);
+
+        if (state.player.gold < cost) {
+            alert('Niewystarczająca ilość złota! Stowarzyszenie nie wyda licencji bez pełnej kaucji.');
+            return;
+        }
+
+        window.gameState.spendGold(cost);
+        if (!state.world.reservedGates) {
+            state.world.reservedGates = {};
+        }
+        state.world.reservedGates[gateId] = true;
+        window.gameState.save();
+
+        this.showSystemAlert(`[ZAKUPIONO LICENCJĘ RAJDU]\nZarejestrowano pomyślnie rezerwację Bramy "${gate.name}" w rejestrze Stowarzyszenia. Pobrano opłatę w wysokości ${cost} złota.`);
+        
+        // Refresh prep screen layout
+        this.openRaidPrep(gateId);
+        this.renderGatesTab();
+        this.updateHUD();
+    }
+
+    /**
+     * ENTERS THE DUNGEON (POINT OF NO RETURN)
+     */
+    executeEnterGate() {
+        const gateId = this.selectedPrepGateId;
+        if (!gateId) return;
+
         const check = window.dungeonsSystem.startGate(gateId);
         if (check) {
+            const state = window.gameState.state;
+            state.world.currentGate = gateId;
+            window.gameState.save();
+
+            this.closeRaidPrep();
             this.renderGatesTab();
+            this.showSystemAlert(`[PRZEKROCZENIE HORYZONTU WRÓT]\nPrzekraczasz błonę portalu. Czujesz mrożący krew w klatce pradawny powiew. Brak możliwości odwrotu do chwili oczyszczenia bossa lub ratunkowej ewakuacji...`);
             this.updateHUD();
         }
+    }
+
+    /**
+     * DISPLAY ESCAPE MODAL AT CRITICAL HEALTH STATUS
+     */
+    showEscapeModal() {
+        document.getElementById('escape-prompt-modal').classList.remove('hidden');
+    }
+
+    /**
+     * PERFORMS ESCAPE BACKUP TIME-ROLLBACK
+     */
+    executeEscapeDungeon() {
+        const backupData = localStorage.getItem(window.gameState.SAVE_KEY + "_dungeon_backup");
+        if (backupData) {
+            window.gameState.state = JSON.parse(backupData);
+            window.gameState.save();
+            console.log("[SYSTEM] Ucieczka udana: nastąpiło cofnięcie zmian ze stabilnego punktu przywracania.");
+        }
+
+        document.getElementById('escape-prompt-modal').classList.add('hidden');
+        window.dungeonsSystem.battleActive = false;
+        window.dungeonsSystem.isPaused = false;
+        window.dungeonsSystem.escapePromptTriggered = false;
+
+        this.switchTab('city');
+        this.renderGatesTab();
+        this.updateHUD();
+        
+        this.showSystemAlert(`[EWANUACJA POMYŚLNA]\nUżyłeś Kryształu Powrotu i uciekłeś w porę! Życie Twojej postaci zostało uratowane. Czas, opłaty licencyjne oraz reputacja zostały przywrócone do stanu sprzed przekroczenia bramy. Zdobycze z tego rajdu zostały unicestwione.`);
+    }
+
+    /**
+     * RESUMES EXECUTING TICK PROGRESSION
+     */
+    executeContinueFight() {
+        document.getElementById('escape-prompt-modal').classList.add('hidden');
+        window.dungeonsSystem.isPaused = false;
+        this.showSystemAlert(`[DAVY JONES' LOCKER]\nZdecydowałeś się walczyć dalej. Każdy kolejny cios potworów może okazać się ostatecznym ciosem dla Twojego łowcy!`);
+    }
+
+    /**
+     * TRAGIC COMPONENT POPUP SHOW FOR DEATH OVERLAYS
+     */
+    showDeathScreen() {
+        document.getElementById('death-screen-modal').classList.remove('hidden');
+    }
+
+    /**
+     * RESTORES SOURCE STABLE BACKUP ON SOLID DEATH OVERLAY CLICK
+     */
+    executeRestoreBackupAndRevive() {
+        const backupData = localStorage.getItem(window.gameState.SAVE_KEY + "_dungeon_backup");
+        if (backupData) {
+            window.gameState.state = JSON.parse(backupData);
+            window.gameState.save();
+            console.log("[SYSTEM] Przywrócono stan łowcy bezpośrednio sprzed rozpoczęcia rażącej wyprawy.");
+        } else {
+            // Fallback recovery
+            window.gameState.state.player.hp = Math.floor((window.gameState.state.player.maxHp || 100) * 0.15);
+            window.gameState.save();
+        }
+
+        document.getElementById('death-screen-modal').classList.add('hidden');
+        window.dungeonsSystem.battleActive = false;
+        window.dungeonsSystem.isPaused = false;
+        window.dungeonsSystem.escapePromptTriggered = false;
+
+        this.switchTab('city');
+        this.renderGatesTab();
+        this.updateHUD();
+
+        this.showSystemAlert(`[RETROSPKCJA SYSTEMU]\nZjawiskowa siła systemu powstrzymała Twoją definitywną śmierć! Twoja tożsamość została bezpiecznie odtworzona i przeniesiona do zapisu strefowego przed wejściem. Postaraj się lepiej kolejnym razem!`);
+    }
+
+    executeStartRaid(gateId) {
+        this.openRaidPrep(gateId);
     }
 }
 

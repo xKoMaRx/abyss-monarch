@@ -48,6 +48,7 @@ class GameState {
                 statPoints: 0,
                 avatar: avatar || 'avatar_shadow',
                 talent: talent || 'talent_focus', // passives: talent_focus, talent_blood, talent_well, talent_gold, talent_crit
+                fatigue: 0,
                 skills: [
                     { id: 'strike', level: 1, exp: 0, maxLevel: 10 }
                 ],
@@ -165,6 +166,8 @@ class GameState {
                 unlockedGates: ['gate_e_01'],
                 currentGate: null,
                 completedGates: [],
+                reservedGates: {},
+                dynamicGates: [],
                 activeQuest: {
                     id: 'tutorial',
                     title: 'Wstęp do Otchłani',
@@ -245,11 +248,27 @@ class GameState {
             }
         };
 
-        if (state.player) migrateChar(state.player);
+        if (state.player) {
+            migrateChar(state.player);
+            if (state.player.fatigue === undefined) {
+                state.player.fatigue = 0;
+            }
+        }
         if (state.companions) {
             for (let id in state.companions) {
                 migrateChar(state.companions[id]);
             }
+        }
+
+        // Initialize dungeon reservation and procedural gates safely
+        if (!state.world) {
+            state.world = {};
+        }
+        if (!state.world.reservedGates) {
+            state.world.reservedGates = {};
+        }
+        if (!state.world.dynamicGates) {
+            state.world.dynamicGates = [];
         }
     }
 
