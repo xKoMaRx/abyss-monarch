@@ -12,9 +12,9 @@ class DungeonsSystem {
                 rank: 'E',
                 waves: 3,
                 recommendedLvl: 1,
-                mobTemplate: { name: 'Młody Zombie', hp: 80, patk: 6, def: 2 },
-                boss: { name: 'Olbrzymi Zombie Golem', hp: 250, patk: 14, def: 5 },
-                rewards: { goldMin: 30, goldMax: 60, crystalsMin: 1, crystalsMax: 3, exp: 40 }
+                mobTemplate: { name: 'Młody Zombie', hp: 130, patk: 16, def: 3 },
+                boss: { name: 'Olbrzymi Zombie Golem', hp: 380, patk: 32, def: 6 },
+                rewards: { goldMin: 40, goldMax: 80, crystalsMin: 1, crystalsMax: 3, exp: 50 }
             },
             'gate_d_01': {
                 id: 'gate_d_01',
@@ -22,9 +22,9 @@ class DungeonsSystem {
                 rank: 'D',
                 waves: 3,
                 recommendedLvl: 8,
-                mobTemplate: { name: 'Goblin Wojownik', hp: 200, patk: 16, def: 8 },
-                boss: { name: 'Goblini Wódz', hp: 700, patk: 36, def: 18 },
-                rewards: { goldMin: 150, goldMax: 250, crystalsMin: 5, crystalsMax: 10, exp: 150 }
+                mobTemplate: { name: 'Goblin Wojownik', hp: 320, patk: 36, def: 8 },
+                boss: { name: 'Goblini Wódz', hp: 1100, patk: 78, def: 18 },
+                rewards: { goldMin: 180, goldMax: 280, crystalsMin: 5, crystalsMax: 10, exp: 180 }
             },
             'gate_c_01': {
                 id: 'gate_c_01',
@@ -32,9 +32,9 @@ class DungeonsSystem {
                 rank: 'C',
                 waves: 4,
                 recommendedLvl: 20,
-                mobTemplate: { name: 'Szkielet Wojownik', hp: 500, patk: 40, def: 25 },
-                boss: { name: 'Upadły Lich', hp: 2000, patk: 90, def: 50 },
-                rewards: { goldMin: 500, goldMax: 800, crystalsMin: 12, crystalsMax: 20, exp: 500 }
+                mobTemplate: { name: 'Szkielet Wojownik', hp: 850, patk: 92, def: 25 },
+                boss: { name: 'Upadły Lich', hp: 3600, patk: 220, def: 52 },
+                rewards: { goldMin: 600, goldMax: 950, crystalsMin: 12, crystalsMax: 20, exp: 600 }
             },
             'gate_b_01': {
                 id: 'gate_b_01',
@@ -42,9 +42,9 @@ class DungeonsSystem {
                 rank: 'B',
                 waves: 4,
                 recommendedLvl: 35,
-                mobTemplate: { name: 'Runiczny Golem', hp: 1200, patk: 100, def: 80 },
-                boss: { name: 'Rdzawy Golem Stalowy', hp: 5000, patk: 240, def: 150 },
-                rewards: { goldMin: 1200, goldMax: 2000, crystalsMin: 30, crystalsMax: 50, exp: 1200 }
+                mobTemplate: { name: 'Runiczny Golem', hp: 2200, patk: 230, def: 80 },
+                boss: { name: 'Rdzawy Golem Stalowy', hp: 9500, patk: 560, def: 154 },
+                rewards: { goldMin: 1500, goldMax: 2500, crystalsMin: 30, crystalsMax: 50, exp: 1500 }
             },
             'gate_a_01': {
                 id: 'gate_a_01',
@@ -52,9 +52,9 @@ class DungeonsSystem {
                 rank: 'A',
                 waves: 4,
                 recommendedLvl: 55,
-                mobTemplate: { name: 'Smoczy Jaszczuroczłek', hp: 3000, patk: 220, def: 150 },
-                boss: { name: 'Czerwony Smok Drake', hp: 12000, patk: 480, def: 300 },
-                rewards: { goldMin: 3500, goldMax: 6000, crystalsMin: 80, crystalsMax: 150, exp: 4000 }
+                mobTemplate: { name: 'Smoczy Jaszczuroczłek', hp: 5500, patk: 540, def: 150 },
+                boss: { name: 'Czerwony Smok Drake', hp: 24000, patk: 1380, def: 300 },
+                rewards: { goldMin: 4500, goldMax: 7500, crystalsMin: 80, crystalsMax: 150, exp: 4500 }
             },
             'gate_s_01': {
                 id: 'gate_s_01',
@@ -62,9 +62,9 @@ class DungeonsSystem {
                 rank: 'S',
                 waves: 5,
                 recommendedLvl: 75,
-                mobTemplate: { name: 'Żołnierz Pustki', hp: 8000, patk: 500, def: 400 },
-                boss: { name: 'Generał Pustki Bellion', hp: 35000, patk: 1100, def: 800 },
-                rewards: { goldMin: 12000, goldMax: 20000, crystalsMin: 250, crystalsMax: 400, exp: 15000 }
+                mobTemplate: { name: 'Żołnierz Pustki', hp: 15000, patk: 1200, def: 400 },
+                boss: { name: 'Generał Pustki Bellion', hp: 65000, patk: 3200, def: 800 },
+                rewards: { goldMin: 15000, goldMax: 25000, crystalsMin: 250, crystalsMax: 400, exp: 18000 }
             }
         };
 
