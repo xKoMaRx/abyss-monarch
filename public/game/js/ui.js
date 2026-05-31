@@ -21,12 +21,27 @@ class UIEngine {
         this.selectedGearId = null;
 
         this.currentLocationId = null;
+
+        // Shadow bestiary pagination properties
+        this.bestiaryPage = 1;
+        this.bestiaryItemsPerPage = 20;
+        this.bestiarySearchQuery = "";
+        this.bestiaryRankQuery = "ALL";
     }
 
     /**
      * Bootstraps interface bindings and shows start screen profile selection
      */
     init() {
+        const lastActive = localStorage.getItem('abyss_monarch_last_active_profile');
+        if (lastActive) {
+            const list = window.gameState.loadProfileList();
+            const found = list.find(p => p.id === lastActive);
+            if (found) {
+                this.executeLogin(lastActive, true);
+                return;
+            }
+        }
         this.renderStartScreen();
     }
 
@@ -76,7 +91,7 @@ class UIEngine {
     /**
      * Start Screen Login & Logout Actions
      */
-    executeLogin(profileId) {
+    executeLogin(profileId, isAutoLogin = false) {
         const success = window.gameState.loadProfile(profileId);
         if (success) {
             // Initialize player hp/mp if not present
@@ -110,7 +125,9 @@ class UIEngine {
             this.switchTab('city');
             
             const name = window.gameState.state.player.name;
-            this.showSystemAlert(`[ZALOGOWANO POMYŚLNIE]\nWitaj z powrotem, Łowco ${name}.\nSystem przywrócił Twój stan bojowy. Gotowy do ponownego oczyszczania Bram Otchłani?`);
+            if (!isAutoLogin) {
+                this.showSystemAlert(`[ZALOGOWANO POMYŚLNIE]\nWitaj z powrotem, Łowco ${name}.\nSystem przywrócił Twój stan bojowy. Gotowy do ponownego oczyszczania Bram Otchłani?`);
+            }
         } else {
             alert('Wczytywanie profilu zakończone niepowodzeniem.');
         }
@@ -119,6 +136,9 @@ class UIEngine {
     executeLogout() {
         // Save first
         window.gameState.save();
+
+        // Remove active profile tracker
+        localStorage.removeItem('abyss_monarch_last_active_profile');
 
         // Nullify slot
         window.gameState.SAVE_KEY = null;
@@ -2031,6 +2051,319 @@ class UIEngine {
 
     executeStartRaid(gateId) {
         this.openRaidPrep(gateId);
+    }
+
+    /**
+     * SHOW DETAILED RAID SUMMARY GRAPH SCREEN
+     */
+    showRaidSummary(isVictory, combatStats, gate) {
+        const modal = document.getElementById('raid-summary-modal');
+        if (!modal) return;
+
+        const titleEl = document.getElementById('summary-title');
+        const subtitleEl = document.getElementById('summary-subtitle');
+        const badgeIconEl = document.getElementById('summary-badge-icon');
+        const durationEl = document.getElementById('summary-duration');
+        const difficultyEl = document.getElementById('summary-difficulty');
+        const expEl = document.getElementById('summary-exp');
+        const goldEl = document.getElementById('summary-gold');
+        const crystalsContainer = document.getElementById('summary-crystals-container');
+        const lootContainer = document.getElementById('summary-loot-container');
+        const partyChartEl = document.getElementById('summary-party-chart');
+
+        if (isVictory) {
+            titleEl.textContent = "ZWYCIĘSTWO!";
+            titleEl.className = "glowing-text cyan-neon";
+            titleEl.style.color = "var(--cyan-neon)";
+            subtitleEl.textContent = `Brama [${gate.name}] została pomyślnie oczyszczona!`;
+            badgeIconEl.innerHTML = `<i class="fa-solid fa-trophy" style="color: gold; text-shadow: 0 0 15px rgba(255, 215, 0, 0.6);"></i>`;
+        } else {
+            titleEl.textContent = "PORAŻKA";
+            titleEl.className = "glowing-text";
+            titleEl.style.color = "#ff3333";
+            subtitleEl.textContent = `Twoja drużyna poległa w Bramie [${gate.name}].`;
+            badgeIconEl.innerHTML = `<i class="fa-solid fa-skull-crossbones" style="color: #ff3333; text-shadow: 0 0 15px rgba(255, 0, 0, 0.6);"></i>`;
+        }
+
+        // Duration formatting
+        if (combatStats) {
+            const min = String(Math.floor(combatStats.durationSeconds / 60)).padStart(2, '0');
+            const sec = String(combatStats.durationSeconds % 60).padStart(2, '0');
+            durationEl.textContent = `${min}:${sec}`;
+            difficultyEl.textContent = gate.rank;
+            difficultyEl.className = `rank rank-${gate.rank}`;
+            expEl.textContent = `+${combatStats.expGained} EXP`;
+            goldEl.textContent = `+${combatStats.goldEarned} Złota`;
+        }
+
+        // Render crystals by rank
+        crystalsContainer.innerHTML = '';
+        const crystalTiers = ['E', 'D', 'C', 'B', 'A', 'S'];
+        const crystalColors = {
+            'E': '#888888',
+            'D': '#1e40af',
+            'C': '#06b6d4',
+            'B': '#8b5cf6',
+            'A': '#f59e0b',
+            'S': '#dc2626'
+        };
+
+        let hasCrystals = false;
+        crystalTiers.forEach(tier => {
+            const count = combatStats && combatStats.manaCrystalsEarned ? (combatStats.manaCrystalsEarned[tier] || 0) : 0;
+            if (count > 0 || tier === gate.rank) {
+                hasCrystals = true;
+                const cell = document.createElement('div');
+                cell.style.background = 'rgba(0,0,0,0.3)';
+                cell.style.border = `1px solid ${crystalColors[tier] || 'rgba(255,255,255,0.1)'}`;
+                cell.style.borderRadius = '4px';
+                cell.style.padding = '6px';
+                cell.style.textAlign = 'center';
+                cell.style.fontSize = '10px';
+                cell.innerHTML = `
+                    <div style="font-weight: bold; color: ${crystalColors[tier]}; margin-bottom: 2px;">Ranga ${tier}</div>
+                    <div style="font-size: 11px; font-weight: bold; color: #fff;">+${count} szt.</div>
+                `;
+                crystalsContainer.appendChild(cell);
+            }
+        });
+        if (!hasCrystals) {
+            crystalsContainer.innerHTML = `<span style="color: var(--text-muted); font-size: 11px;">Brak pozyskanych kryształów.</span>`;
+        }
+
+        // Display items obtained
+        lootContainer.innerHTML = '';
+        if (isVictory && combatStats && combatStats.itemsObtained && combatStats.itemsObtained.length > 0) {
+            combatStats.itemsObtained.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.style.display = 'flex';
+                itemDiv.style.alignItems = 'center';
+                itemDiv.style.justifyContent = 'space-between';
+                itemDiv.style.background = 'rgba(255,255,255,0.03)';
+                itemDiv.style.border = '1px solid rgba(255,255,255,0.06)';
+                itemDiv.style.borderRadius = '4px';
+                itemDiv.style.padding = '8px 12px';
+                itemDiv.style.fontSize = '11px';
+
+                // Rarity color mapping
+                const rColors = {
+                    'Pospolity': '#aaaaaa',
+                    'Szary': '#aaaaaa',
+                    'Uncommon': '#4caf50',
+                    'Zielony': '#4caf50',
+                    'Rzadki': '#00f3ff',
+                    'Niebieski': '#00f3ff',
+                    'Epicki': '#9000ff',
+                    'Fioletowy': '#9000ff',
+                    'Legendarny': '#ff9000',
+                    'Pomarańczowy': '#ff9000'
+                };
+                const col = rColors[item.rarity] || '#ffffff';
+
+                itemDiv.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-shield-halved" style="color: ${col}; font-size: 14px;"></i>
+                        <div>
+                            <span style="font-weight: bold; color: ${col};">[${item.rarity}] ${item.name}</span>
+                            <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Dodatkowy bonus: ${item.statBonusText || 'Brak'}</div>
+                        </div>
+                    </div>
+                `;
+                lootContainer.appendChild(itemDiv);
+            });
+        } else {
+            lootContainer.innerHTML = `
+                <div style="text-align: center; color: var(--text-muted); font-size: 11px; padding: 10px; border: 1px dashed rgba(255,255,255,0.08); border-radius: 4px; width: 100%;">
+                    Brak nowych unikalnych przedmiotów z tej wyprawy.
+                </div>
+            `;
+        }
+
+        // Render damage share comparison graph
+        partyChartEl.innerHTML = '';
+        if (combatStats) {
+            const idsList = Object.keys(combatStats.damageDealt);
+            if (idsList.length === 0) {
+                idsList.push('player');
+            }
+
+            // Also include active companions currently in party who might have dealt 0 dmg
+            window.gameState.state.party.forEach(id => {
+                if (!idsList.includes(id)) {
+                    idsList.push(id);
+                }
+            });
+
+            let totalPartyDmg = 0;
+            idsList.forEach(id => {
+                totalPartyDmg += (combatStats.damageDealt[id] || 0);
+            });
+
+            const durationSec = combatStats.durationSeconds || 1;
+
+            idsList.forEach(id => {
+                let name = "Bohater";
+                if (id === 'player') {
+                    name = window.gameState.state.player.name || "Bohater";
+                } else {
+                    const comp = window.gameState.state.companions[id];
+                    if (comp) name = comp.name;
+                }
+
+                const dmg = combatStats.damageDealt[id] || 0;
+                const heal = combatStats.damageHealed[id] || 0;
+                const dps = (dmg / durationSec).toFixed(1);
+                const percent = totalPartyDmg > 0 ? Math.round((dmg / totalPartyDmg) * 100) : 0;
+
+                const barDiv = document.createElement('div');
+                barDiv.style.display = 'flex';
+                barDiv.style.flexDirection = 'column';
+                barDiv.style.gap = '4px';
+
+                barDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+                        <span style="font-weight: bold; color: #fff;">${name} <span style="font-size: 10px; color: var(--text-muted); font-weight: normal;">(DPS: ${dps})</span></span>
+                        <span style="font-weight: bold; color: var(--cyan-neon);">${dmg} dmg / ${heal} leczenie <span style="font-size: 10px; color: var(--text-muted); font-weight: normal;">(${percent}%)</span></span>
+                    </div>
+                    <div style="width: 100%; height: 10px; background: rgba(0,0,0,0.5); border-radius: 5px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+                        <div style="width: ${Math.max(2, percent)}%; height: 100%; background: linear-gradient(90deg, var(--violet-neon), var(--cyan-neon)); border-radius: 5px; transition: width 0.5s ease;"></div>
+                    </div>
+                `;
+                partyChartEl.appendChild(barDiv);
+            });
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    closeRaidSummary() {
+        document.getElementById('raid-summary-modal').classList.add('hidden');
+        this.switchTab('combat');
+        this.renderGatesTab();
+        this.updateHUD();
+    }
+
+    /**
+     * SHADOW BESTIARY HANDLERS
+     */
+    openBestiaryModal() {
+        this.bestiaryPage = 1;
+        this.bestiaryItemsPerPage = 20;
+        this.bestiarySearchQuery = "";
+        this.bestiaryRankQuery = "ALL";
+        
+        // Reset fields
+        const searchInput = document.getElementById('bestiary-search-input');
+        const rankSelect = document.getElementById('bestiary-rank-select');
+        if (searchInput) searchInput.value = "";
+        if (rankSelect) rankSelect.value = "ALL";
+
+        document.getElementById('bestiary-modal').classList.remove('hidden');
+        this.renderBestiaryList();
+    }
+
+    closeBestiaryModal() {
+        document.getElementById('bestiary-modal').classList.add('hidden');
+    }
+
+    handleBestiarySearch() {
+        const queryVal = document.getElementById('bestiary-search-input').value;
+        const rankVal = document.getElementById('bestiary-rank-select').value;
+        this.bestiarySearchQuery = queryVal || "";
+        this.bestiaryRankQuery = rankVal || "ALL";
+        this.bestiaryPage = 1; // reset page on search filter change
+        this.renderBestiaryList();
+    }
+
+    changeBestiaryPage(direction) {
+        this.bestiaryPage = Math.max(1, this.bestiaryPage + direction);
+        this.renderBestiaryList();
+    }
+
+    renderBestiaryList() {
+        const grid = document.getElementById('bestiary-grid');
+        const loading = document.getElementById('bestiary-loading');
+        if (!grid) return;
+
+        if (loading) loading.classList.remove('hidden');
+
+        // Query procedural monsters list deterministically
+        const offset = (this.bestiaryPage - 1) * this.bestiaryItemsPerPage;
+        const data = window.monstersDB.search(this.bestiarySearchQuery, this.bestiaryRankQuery, this.bestiaryItemsPerPage, offset);
+
+        // Update counts
+        document.getElementById('bestiary-total-count').textContent = data.total;
+        document.getElementById('bestiary-page-current').textContent = this.bestiaryPage;
+
+        // Disable/enable pagination buttons
+        const prevBtn = document.getElementById('bestiary-prev-btn');
+        const nextBtn = document.getElementById('bestiary-next-btn');
+
+        if (prevBtn) prevBtn.disabled = (this.bestiaryPage <= 1);
+        if (nextBtn) nextBtn.disabled = (offset + this.bestiaryItemsPerPage >= data.total);
+
+        grid.innerHTML = '';
+
+        if (data.monsters.length === 0) {
+            grid.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-muted); font-size: 12px;">
+                    <i class="fa-solid fa-binoculars" style="font-size: 24px; color: rgba(255,255,255,0.1); margin-bottom: 10px;"></i><br>
+                    Brak potworów spełniających kryteria wyszukiwania. Spróbuj zmienić filtry.
+                </div>
+            `;
+            if (loading) loading.classList.add('hidden');
+            return;
+        }
+
+        data.monsters.forEach(m => {
+            const card = document.createElement('div');
+            card.style.background = 'rgba(0,0,0,0.45)';
+            card.style.border = '1px solid rgba(255,255,255,0.05)';
+            card.style.borderRadius = '5px';
+            card.style.padding = '12px';
+            card.style.display = 'flex';
+            card.style.flexDirection = 'column';
+            card.style.gap = '8px';
+            card.style.transition = 'border-color 0.2s, box-shadow 0.2s';
+
+            // Rarity colors based on rank label badges
+            const rankColors = {
+                'E': '#888888',
+                'D': '#1e40af',
+                'C': '#06b6d4',
+                'B': '#8b5cf6',
+                'A': '#f59e0b',
+                'S': '#dc2626'
+            };
+            const rCol = rankColors[m.rank] || '#ccc';
+
+            // Render stats card
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="font-size: 11px; font-weight: bold; color: #fff; line-height: 1.3;">${m.name}</div>
+                    <span class="rank rank-${m.rank}" style="scale: 0.85; transform-origin: top right; padding: 1px 4px;">${m.rank}</span>
+                </div>
+                <div style="font-size: 10px; color: var(--text-muted);">Poziom: <span style="color: #fff; font-weight: bold;">Lvl ${m.level}</span></div>
+                <p style="font-size: 10px; color: #ccc; margin: 0; line-height: 1.3; font-style: italic; min-height: 26px;">
+                    ${m.description}
+                </p>
+                <div style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 6px; margin-top: 2px;">
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; font-size: 10px; color: var(--text-muted);">
+                        <span>HP: <span style="color: #ff3333; font-weight: bold;">${m.hp}</span></span>
+                        <span>ATK: <span style="color: #38bdf8; font-weight: bold;">${m.patk}</span></span>
+                        <span>DEF: <span style="color: #fb7185; font-weight: bold;">${m.def}</span></span>
+                        <span>PRĘD: <span style="color: #4ade80; font-weight: bold;">${m.speed}</span></span>
+                    </div>
+                </div>
+                <div style="border-top: 1px dashed rgba(255,255,255,0.05); padding-top: 6px; margin-top: 2px; font-size: 9px; color: var(--text-muted); line-height: 1.2;">
+                    <i class="fa-solid fa-gem" style="margin-right: 2px; color: gold;"></i> Potencjalne Łupy: <br>
+                    <span style="color: #93c5fd; font-weight: bold;">${m.drops.join(', ')}</span>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+
+        if (loading) loading.classList.add('hidden');
     }
 }
 

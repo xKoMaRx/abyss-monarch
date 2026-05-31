@@ -587,6 +587,9 @@
                 <div class="combat-grid-layout">
                     <div class="gates-selection glass-panel">
                         <h3>DOSTĘPNE BRAMY</h3>
+                        <button class="neon-btn violet" id="open-bestiary-btn" onclick="window.uiEngine.openBestiaryModal()" style="width: 100%; margin-bottom: 12px; padding: 10px; font-weight: bold; font-size: 11px; background: rgba(144, 0, 255, 0.15); border-color: rgba(144, 0, 255, 0.5);">
+                            <i class="fa-solid fa-book-skull" style="margin-right: 6px;"></i> BESTIARIUSZ (1000 POTWORÓW)
+                        </button>
                         <div id="gates-list-container" class="gates-list"></div>
                     </div>
 
@@ -761,6 +764,145 @@
             </div>
         </div>
 
+        <!-- RAID SUMMARY MODAL -->
+        <div id="raid-summary-modal" class="modal-overlay hidden" style="z-index: 2500; background: rgba(5, 0, 5, 0.95); overflow-y: auto;">
+            <div class="glass-panel violet-neon-border" style="max-width: 800px; width: 95%; margin: 40px auto; padding: 25px; text-align: left; background: rgba(10, 5, 15, 0.98); box-shadow: 0 0 40px rgba(138, 43, 226, 0.4);">
+                <div style="text-align: center; margin-bottom: 25px; border-bottom: 2px solid rgba(138, 43, 226, 0.2); padding-bottom: 15px;">
+                    <div id="summary-badge-icon" style="font-size: 50px; color: var(--violet-neon); margin-bottom: 10px;">
+                        <i class="fa-solid fa-trophy"></i>
+                    </div>
+                    <h2 id="summary-title" class="glowing-text" style="font-size: 24px; letter-spacing: 2px; margin: 0; text-transform: uppercase;">ZWYCIĘSTWO</h2>
+                    <p id="summary-subtitle" style="font-size: 13px; color: var(--text-muted); margin: 5px 0 0 0;">Brama została pomyślnie oczyszczona</p>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+                    <!-- LEFT PANEL: STATS & LOOT -->
+                    <div style="background: rgba(0,0,0,0.4); padding: 18px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                        <h3 style="font-size: 13px; color: var(--cyan-neon); margin-top: 0; margin-bottom: 15px; border-bottom: 1px dashed rgba(0,243,255,0.2); padding-bottom: 6px; text-transform: uppercase; letter-spacing: 1px;">
+                            <i class="fa-solid fa-chart-simple"></i> Statystyki Wyprawy
+                        </h3>
+                        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px; margin-bottom: 25px;">
+                            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
+                                <span style="color: var(--text-muted);">Czas przejścia:</span>
+                                <span id="summary-duration" style="font-weight: bold; color: #fff;">00:00</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
+                                <span style="color: var(--text-muted);">Poziom trudności:</span>
+                                <span id="summary-difficulty" style="font-weight: bold;" class="rank rank-E">E</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
+                                <span style="color: var(--text-muted);">Otrzymane Doświadczenie:</span>
+                                <span id="summary-exp" style="font-weight: bold; color: var(--cyan-neon);">+0 EXP</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
+                                <span style="color: var(--text-muted);">Zdobyte Złoto:</span>
+                                <span id="summary-gold" style="font-weight: bold; color: gold;">+0 G</span>
+                            </div>
+                        </div>
+
+                        <!-- Crystals breakdown -->
+                        <h3 style="font-size: 13px; color: var(--cyan-neon); margin-bottom: 10px; border-bottom: 1px dashed rgba(0,243,255,0.2); padding-bottom: 6px; text-transform: uppercase; letter-spacing: 1px;">
+                            <i class="fa-solid fa-gem"></i> Pozyskane Kryształy
+                        </h3>
+                        <div id="summary-crystals-container" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px;">
+                            <!-- Will be injected: Rank crystals with mini counts -->
+                        </div>
+
+                        <!-- Rewards gear dropped -->
+                        <h3 style="font-size: 13px; color: var(--cyan-neon); margin-bottom: 10px; border-bottom: 1px dashed rgba(0,243,255,0.2); padding-bottom: 6px; text-transform: uppercase; letter-spacing: 1px;">
+                            <i class="fa-solid fa-gift"></i> Unikalny Łup Sektora
+                        </h3>
+                        <div id="summary-loot-container" style="display: flex; flex-direction: column; gap: 8px;">
+                            <!-- Will be injected -->
+                        </div>
+                    </div>
+
+                    <!-- RIGHT PANEL: DAMAGE COMPARISON GRAPH -->
+                    <div style="background: rgba(0,0,0,0.4); padding: 18px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column;">
+                        <h3 style="font-size: 13px; color: var(--violet-neon); margin-top: 0; margin-bottom: 15px; border-bottom: 1px dashed rgba(138,43,226,0.2); padding-bottom: 6px; text-transform: uppercase; letter-spacing: 1px;">
+                            <i class="fa-solid fa-chart-column"></i> Udział w Obrażeniach (Damage Share)
+                        </h3>
+                        <div id="summary-party-chart" style="display: flex; flex-direction: column; gap: 15px; flex-grow: 1; justify-content: center;">
+                            <!-- Bars representing teammate damage contributions -->
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 30px; display: flex; justify-content: center;">
+                    <button class="neon-btn violet" onclick="window.uiEngine.closeRaidSummary()" style="padding: 12px 35px; font-weight: bold; font-size: 13px; border-width: 2px; width: 100%; max-width: 280px; background: rgba(138, 43, 226, 0.2); border-color: var(--violet-neon); color: #fff; cursor: pointer;">
+                        OTRZYMAJ NAGRODY
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- BESTIARY MODAL -->
+        <div id="bestiary-modal" class="modal-overlay hidden" style="z-index: 2300; background: rgba(5, 5, 5, 0.96); overflow-y: auto;">
+            <div class="glass-panel violet-neon-border" style="max-width: 900px; width: 95%; margin: 30px auto; padding: 25px; text-align: left; background: rgba(10, 10, 12, 0.98); box-shadow: 0 0 35px rgba(0, 243, 255, 0.25);">
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid rgba(0, 243, 255, 0.2); padding-bottom: 12px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 30px; color: var(--cyan-neon);"><i class="fa-solid fa-book-skull"></i></span>
+                        <div>
+                            <h2 class="glowing-text cyan-neon" style="font-size: 20px; letter-spacing: 2px; margin: 0; text-transform: uppercase;">Bestiariusz Cieni</h2>
+                            <p style="font-size: 11px; color: var(--text-muted); margin: 2px 0 0 0;">Oficjalny rejestr 1,000 potworów zadekretowanych przez Stowarzyszenie Łowców</p>
+                        </div>
+                    </div>
+                    <button class="neon-btn gray-btn" onclick="window.uiEngine.closeBestiaryModal()" style="padding: 6px 12px; font-size: 11px; border-color: rgba(255,255,255,0.15); color: #ccc;">
+                        <i class="fa-solid fa-xmark"></i> ZAMKNIJ
+                    </button>
+                </div>
+
+                <!-- SEARCH & FILTER CONTROLS -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; background: rgba(255,255,255,0.02); padding: 15px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.04);">
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <label style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: bold;">Szukaj Potwora</label>
+                        <input type="text" id="bestiary-search-input" oninput="window.uiEngine.handleBestiarySearch()" placeholder="Wpisz nazwę lub frazę..." style="background: rgba(0,0,0,0.5); border: 1px solid rgba(0, 243, 255, 0.3); border-radius: 4px; padding: 10px; color: #fff; font-size: 12px; outline: none;">
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <label style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: bold;">Filtruj wg Rangi</label>
+                        <select id="bestiary-rank-select" onchange="window.uiEngine.handleBestiarySearch()" style="background: rgba(0,0,0,0.5); border: 1px solid rgba(0, 243, 255, 0.3); border-radius: 4px; padding: 9px; color: #fff; font-size: 12px; outline: none; cursor: pointer;">
+                            <option value="ALL">Wszystkie rangi (E-S)</option>
+                            <option value="S">Ranga S (Najpotężniejsze)</option>
+                            <option value="A">Ranga A</option>
+                            <option value="B">Ranga B</option>
+                            <option value="C">Ranga C</option>
+                            <option value="D">Ranga D</option>
+                            <option value="E">Ranga E (Słabe)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- LIST CONTAINER & PAGINATION -->
+                <div style="position: relative; display: flex; flex-direction: column; gap: 15px;">
+                    <div id="bestiary-loading" class="hidden" style="position: absolute; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 5;">
+                        <span class="cyan-neon" style="font-size: 14px; font-weight: bold;"><i class="fa-solid fa-spinner-third fa-spin"></i> Pobieranie danych z rejestru...</span>
+                    </div>
+
+                    <div style="font-size: 11px; color: var(--text-muted); font-style: italic; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <span>Znaleziono: <span id="bestiary-total-count" style="color: var(--cyan-neon); font-weight: bold;">0</span> monstrów</span>
+                        <span>Strona <span id="bestiary-page-current">1</span></span>
+                    </div>
+
+                    <!-- Main grid layout -->
+                    <div id="bestiary-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; max-height: 420px; overflow-y: auto; padding-right: 5px;">
+                        <!-- Will be procedurally injected -->
+                    </div>
+
+                    <!-- Pagination buttons -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px; margin-top: 5px;">
+                        <button class="neon-btn gray-btn" id="bestiary-prev-btn" onclick="window.uiEngine.changeBestiaryPage(-1)" style="padding: 8px 18px; font-size: 11px; border-color: rgba(255,255,255,0.15); color: #ccc;">
+                            <i class="fa-solid fa-arrow-left"></i> Poprzednia
+                        </button>
+                        <span style="font-size: 11px; color: var(--text-muted);">Zapisy Stowarzyszenia</span>
+                        <button class="neon-btn gray-btn" id="bestiary-next-btn" onclick="window.uiEngine.changeBestiaryPage(1)" style="padding: 8px 18px; font-size: 11px; border-color: rgba(255,255,255,0.15); color: #ccc;">
+                            Następna <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- TABS BUTTONS -->
         <footer id="bottom-tabs">
             <button class="tab-btn active" onclick="window.uiEngine.switchTab('city')" data-tooltip="Mapa Eksploracji Miasta&#10;Podróżuj po lokalizacjach miejskich, trenuj cechy, studiuj, kupuj podarki i spotykaj towarzyszy."><i class="fa-solid fa-map-location-dot"></i> Eksploracja</button>
@@ -774,6 +916,7 @@
     <!-- Script imports -->
     <script src="js/state.js"></script>
     <script src="js/classes.js"></script>
+    <script src="js/monsters-db.js"></script>
     <script src="js/skills.js"></script>
     <script src="js/city.js"></script>
     <script src="js/quests.js"></script>

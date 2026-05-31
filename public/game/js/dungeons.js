@@ -210,6 +210,22 @@ class DungeonsSystem {
         this.activeParty = this.prepareBattleParty();
         this.currentWave = 1;
 
+        // Initialize combat stats tracking
+        this.combatStats = {
+            startTime: Date.now(),
+            durationSeconds: 0,
+            damageDealt: {},
+            damageHealed: {},
+            goldEarned: 0,
+            expGained: 0,
+            manaCrystalsEarned: { E: 0, D: 0, C: 0, B: 0, A: 0, S: 0 },
+            itemsObtained: []
+        };
+        this.activeParty.forEach(ally => {
+            this.combatStats.damageDealt[ally.id] = 0;
+            this.combatStats.damageHealed[ally.id] = 0;
+        });
+
         // Deciding Gate Type / Layout based on Rank
         this.gateType = gate.dynamicType || 'standard';
         if (!gate.isDynamic) {
@@ -324,11 +340,25 @@ class DungeonsSystem {
 
             const numMobs = minMobs + Math.floor(Math.random() * (maxMobs - minMobs + 1));
 
+            // Get available rank monsters from database
+            const rankMonsters = window.monstersDB ? window.monstersDB.monsters.filter(m => m.rank === gate.rank) : [];
+
             for (let i = 1; i <= numMobs; i++) {
                 let mobName = "";
                 let hp = gate.mobTemplate.hp;
                 let patk = gate.mobTemplate.patk;
                 let def = gate.mobTemplate.def;
+
+                // Pick from 1000 monsters database
+                if (rankMonsters.length > 0) {
+                    const pickedDb = rankMonsters[Math.floor(Math.random() * rankMonsters.length)];
+                    mobName = pickedDb.name;
+                    hp = Math.floor(pickedDb.hp * 0.45); // balanced formula for wave health
+                    patk = pickedDb.patk;
+                    def = pickedDb.def;
+                } else {
+                    mobName = gate.mobTemplate.name;
+                }
 
                 // Swarm balance: Reduce individual HP slightly when facing massive crowds to prevent boring HP sponges
                 const swarmScale = Math.max(0.4, 1.25 - (numMobs * 0.045));
@@ -339,12 +369,12 @@ class DungeonsSystem {
                     hp = Math.floor(hp * 1.15);
                     patk = Math.floor(patk * 1.05);
                 } else if (isEliteSpawn && i === 1) {
-                    mobName = `[ELITARNY] ${gate.mobTemplate.name}`;
+                    mobName = `[ELITARNY] ${mobName}`;
                     hp = Math.floor(hp * 1.55);
                     patk = Math.floor(patk * 1.25);
                     def = Math.floor(def * 1.20);
                 } else {
-                    mobName = `${gate.mobTemplate.name} ${String.fromCharCode(64 + i)}`;
+                    mobName = `${mobName} ${String.fromCharCode(64 + i)}`;
                 }
 
                 // Apply Red Gate stat mutations (+25% HP, +20% ATK, +15% DEF)
@@ -356,7 +386,7 @@ class DungeonsSystem {
                 }
 
                 // Dynamic HP fluctuation
-                const finalHp = Math.floor(hp * (0.9 + Math.random() * 0.2));
+                const finalHp = Math.max(10, Math.floor(hp * (0.9 + Math.random() * 0.2)));
 
                 this.monsters.push({
                     name: mobName,
@@ -379,8 +409,16 @@ class DungeonsSystem {
             let patk = bossTemplate.patk;
             let def = bossTemplate.def;
 
+            // Pick a high-tier matching rank monster from the 1000 database as Section Boss
+            const rankMonsters = window.monstersDB ? window.monstersDB.monsters.filter(m => m.rank === gate.rank) : [];
+            if (rankMonsters.length > 0) {
+                const sortedRank = [...rankMonsters].sort((a,b) => b.level - a.level);
+                const pickedBoss = sortedRank[Math.floor(Math.random() * Math.min(15, sortedRank.length))];
+                bossName = pickedBoss.name;
+            }
+
             if (this.gateType === 'red_gate') {
-                bossName = `🚨 [ZMUTOWANY] Arcydemon ${bossTemplate.name}`;
+                bossName = `🚨 [ZMUTOWANY] Arcydemon ${bossName}`;
                 hp = Math.floor(hp * 1.30);
                 patk = Math.floor(patk * 1.25);
                 def = Math.floor(def * 1.15);
@@ -389,6 +427,8 @@ class DungeonsSystem {
                 hp = Math.floor(hp * 1.40);
                 patk = Math.floor(patk * 1.30);
                 def = Math.floor(def * 1.20);
+            } else {
+                bossName = `[BOSS Sektora] ${bossName}`;
             }
 
             this.monsters.push({
@@ -608,6 +648,9 @@ class DungeonsSystem {
                         const healAmount = Math.floor(skill.formula(ally, 1) * (ally.synergyHealBuff || 1.0));
                         target.hp = Math.min(target.maxHp, target.hp + healAmount);
                         log.push(`[WALKA] ${ally.name} rzuca [${skill.name}] i leczy ${target.name} o +${healAmount} HP.`);
+                        if (this.combatStats) {
+                            this.combatStats.damageHealed[ally.id] = (this.combatStats.damageHealed[ally.id] || 0) + healAmount;
+                        }
                     }
                 } else if (skill.effect === 'taunt') {
                     ally.aggro += 50;
@@ -620,6 +663,10 @@ class DungeonsSystem {
                         target.hp = Math.max(0, target.hp - finalDmg);
                         log.push(`[WALKA] ${ally.name} rzuca zaklęcie [${skill.name}] zadając ${finalDmg} obrażeń dla ${target.name}.`);
                         
+                        if (this.combatStats) {
+                            this.combatStats.damageDealt[ally.id] = (this.combatStats.damageDealt[ally.id] || 0) + finalDmg;
+                        }
+
                         if (target.hp === 0 && !target.expAwarded) {
                             target.expAwarded = true;
                             this.awardMonsterExp(target, gate);
@@ -633,6 +680,10 @@ class DungeonsSystem {
                     target.hp = Math.max(0, target.hp - finalDmg);
                     log.push(`[WALKA] ${ally.name} wyprowadza cios fizyczny, zadając ${finalDmg} obrażeń dla ${target.name}.`);
                     
+                    if (this.combatStats) {
+                        this.combatStats.damageDealt[ally.id] = (this.combatStats.damageDealt[ally.id] || 0) + finalDmg;
+                    }
+
                     if (target.hp === 0 && !target.expAwarded) {
                         target.expAwarded = true;
                         this.awardMonsterExp(target, gate);
@@ -644,7 +695,7 @@ class DungeonsSystem {
         // Check if all monsters in this sector died
         const allMonstersDead = this.monsters.every(m => m.hp <= 0);
         if (allMonstersDead) {
-            // Player gains fatigue with each wave/sector cleared
+            // Player gains fatigue with each sector cleared
             if (state && state.player) {
                 state.player.fatigue = Math.min(100, (state.player.fatigue || 0) + 12);
                 log.push(`[SYSTEM] Zwycięstwo w sektorze! Twoje Zmęczenie wzrosło o +12 (Obecnie: ${Math.round(state.player.fatigue)}/100).`);
@@ -703,13 +754,17 @@ class DungeonsSystem {
                 if (this.gateType === 'double_dungeon') gearBonus = 15;
                 const gearDropped = this.generateRNGGear(gate.rank, gearBonus);
                 window.gameState.state.inventory.gear.push(gearDropped);
+                if (this.combatStats) {
+                    this.combatStats.itemsObtained.push(gearDropped);
+                }
 
                 // Additional Gold bonus if Double Dungeon was cleared
                 let extraGoldText = "";
+                let goldGift = 0;
                 if (this.gateType === 'double_dungeon') {
-                    const goldBonus = Math.floor(300 + Math.random() * 1000);
-                    window.gameState.addGold(goldBonus);
-                    extraGoldText = ` oraz +${goldBonus} Sztuk Złota jako podarek Świątyni`;
+                    goldGift = Math.floor(300 + Math.random() * 1000);
+                    window.gameState.addGold(goldGift);
+                    extraGoldText = ` oraz +${goldGift} Sztuk Złota jako podarek Świątyni`;
                 }
                 if (associationGoldBonus > 0) {
                     extraGoldText += associationText;
@@ -729,8 +784,12 @@ class DungeonsSystem {
                     }
                 });
 
-                // Apply resources (No gold from monsters except temple gifts!)
-                window.gameState.addManaCrystals(crystalsEarned);
+                // Apply resources (No gold from monsters except temple gifts/bounties!)
+                window.gameState.addManaCrystals(crystalsEarned, gate.rank);
+                if (this.combatStats) {
+                    this.combatStats.manaCrystalsEarned[gate.rank] = (this.combatStats.manaCrystalsEarned[gate.rank] || 0) + crystalsEarned;
+                    this.combatStats.goldEarned += (associationGoldBonus + goldGift);
+                }
 
                 // Clear hired mercenaries from active state
                 window.gameState.state.mercenaries = [];
@@ -747,6 +806,18 @@ class DungeonsSystem {
                 }
 
                 this.battleLog.push(...log);
+
+                // Show Victory Summary Screen
+                if (this.combatStats) {
+                    this.combatStats.durationSeconds = Math.max(1, Math.floor((Date.now() - this.combatStats.startTime) / 1000));
+                }
+                const statsCopy = JSON.parse(JSON.stringify(this.combatStats));
+                statsCopy.itemsObtained = [...this.combatStats.itemsObtained];
+                setTimeout(() => {
+                    if (window.uiEngine) {
+                        window.uiEngine.showRaidSummary(true, statsCopy, gate);
+                    }
+                }, 500);
                 return;
             }
         }
@@ -832,6 +903,18 @@ class DungeonsSystem {
 
             log.push(`[SYSTEM] RAJD ZAKOŃCZONY PORAŻKĄ! Odpocznij w mieszkaniu, by odzyskać zdrowie.`);
             this.battleLog.push(...log);
+
+            // Show Defeat Summary Screen
+            if (this.combatStats) {
+                this.combatStats.durationSeconds = Math.max(1, Math.floor((Date.now() - this.combatStats.startTime) / 1000));
+            }
+            const statsCopy = JSON.parse(JSON.stringify(this.combatStats));
+            statsCopy.itemsObtained = []; // items aren't persistent on defeat
+            setTimeout(() => {
+                if (window.uiEngine) {
+                    window.uiEngine.showRaidSummary(false, statsCopy, gate);
+                }
+            }, 600);
             return;
         }
 
@@ -866,6 +949,11 @@ class DungeonsSystem {
 
         expAwarded = Math.max(1, expAwarded);
 
+        // Track total EXP gained during combat
+        if (this.combatStats) {
+            this.combatStats.expGained += expAwarded;
+        }
+
         // Apply exp to player
         const playerLvlUp = window.gameState.addPlayerExp(expAwarded);
         let lvlUpText = playerLvlUp ? " [BOHATER AWANSOWAŁ!]" : "";
@@ -887,18 +975,41 @@ class DungeonsSystem {
             }
         });
 
-        // Regular monsters drops: 30% chance for 1-2 crystals, 8% chance for random gear
+        // Regular monsters drops: 100% chance for crystal(s) matched to monster rank, 8% chance for gear loot
         if (!monster.isBoss) {
             let dropChanceMult = 1.0;
             if (this.gateType === 'red_gate') dropChanceMult = 1.5;
             if (this.gateType === 'double_dungeon') dropChanceMult = 1.8;
 
-            if (Math.random() < (0.30 * dropChanceMult)) {
-                let crystals = Math.floor(1 + Math.random() * 2);
-                if (this.gateType === 'red_gate') crystals = Math.floor(crystals * 2); // Double pre-boss crystals
-                window.gameState.addManaCrystals(crystals);
-                this.battleLog.push(`[ŁUP - KRYSZTAŁY] Pokonany wróg upuszcza +${crystals} magicznych kryształów mana!`);
+            // Crystals quantity based on rank
+            let minCryst = 1;
+            let maxCryst = 1;
+            if (gate.rank === 'D') { minCryst = 1; maxCryst = 2; }
+            else if (gate.rank === 'C') { minCryst = 2; maxCryst = 3; }
+            else if (gate.rank === 'B') { minCryst = 3; maxCryst = 4; }
+            else if (gate.rank === 'A') { minCryst = 4; maxCryst = 5; }
+            else if (gate.rank === 'S') { minCryst = 5; maxCryst = 8; }
+
+            let crystals = Math.floor(minCryst + Math.random() * (maxCryst - minCryst + 1));
+            if (this.gateType === 'red_gate') crystals = Math.round(crystals * 1.5);
+
+            // Add crystal resources with the gate's rank
+            window.gameState.addManaCrystals(crystals, gate.rank);
+            if (this.combatStats) {
+                this.combatStats.manaCrystalsEarned[gate.rank] = (this.combatStats.manaCrystalsEarned[gate.rank] || 0) + crystals;
             }
+
+            const crystalTierNames = {
+                'E': 'Zwykły Kryształ Many (E)',
+                'D': 'Wzmocniony Kryształ Many (D)',
+                'C': 'Czysty Kryształ Many (C)',
+                'B': 'Skondensowany Kryształ Many (B)',
+                'A': 'Doskonały Kryształ Many (A)',
+                'S': 'Boski Kryształ Many (S)'
+            };
+            const cName = crystalTierNames[gate.rank] || 'Kryształ Many';
+            this.battleLog.push(`[ŁUP - KRYSZTAŁY] ${monster.name} pozostawia +${crystals}x [${cName}]!`);
+
             if (Math.random() < (0.08 * dropChanceMult)) {
                 const hpPots = window.gameState.state.inventory.hpPotions !== undefined ? window.gameState.state.inventory.hpPotions : 0;
                 const mpPots = window.gameState.state.inventory.mpPotions !== undefined ? window.gameState.state.inventory.mpPotions : 0;
@@ -910,6 +1021,9 @@ class DungeonsSystem {
                     if (this.gateType === 'double_dungeon') gearBonus = 15;
                     const gear = this.generateRNGGear(gate.rank, gearBonus);
                     window.gameState.state.inventory.gear.push(gear);
+                    if (this.combatStats) {
+                        this.combatStats.itemsObtained.push(gear);
+                    }
                     this.battleLog.push(`[ŁUP - PRZEDMIOT] Pokonany wróg upuszcza rzadki przedmiot: [${gear.rarity}] ${gear.name}!`);
                 }
             }

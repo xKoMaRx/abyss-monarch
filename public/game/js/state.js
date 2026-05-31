@@ -151,6 +151,7 @@ class GameState {
             inventory: {
                 gold: 500,
                 manaCrystals: 0,
+                crystalTiers: { E: 0, D: 0, C: 0, B: 0, A: 0, S: 0 },
                 gifts: {
                     lilac_flowers: 1,
                     energy_drink: 2,
@@ -207,7 +208,10 @@ class GameState {
         });
         this.saveProfileList(list);
 
-        // 4. Bind as active profile
+        // 4. Bind last active profile track
+        localStorage.setItem('abyss_monarch_last_active_profile', profileId);
+
+        // 5. Bind as active profile
         this.SAVE_KEY = newSaveKey;
         this.state = newState;
         this.save();
@@ -261,6 +265,20 @@ class GameState {
         }
 
         // Initialize dungeon reservation and procedural gates safely
+        if (!state.inventory) {
+            state.inventory = { gold: 500, manaCrystals: 0, gear: [] };
+        }
+        if (!state.inventory.crystalTiers) {
+            state.inventory.crystalTiers = {
+                E: state.inventory.manaCrystals || 0,
+                D: 0,
+                C: 0,
+                B: 0,
+                A: 0,
+                S: 0
+            };
+        }
+
         if (!state.world) {
             state.world = {};
         }
@@ -288,6 +306,7 @@ class GameState {
                 this.state = JSON.parse(savedData);
                 this.migrateSaveState(this.state);
                 this.calculateOfflineProgress();
+                localStorage.setItem('abyss_monarch_last_active_profile', profileId);
                 return true;
             } catch (e) {
                 console.error("Failed to load profile data", e);
@@ -307,6 +326,10 @@ class GameState {
 
         // Remove actual save state
         localStorage.removeItem(found.saveKey);
+
+        if (localStorage.getItem('abyss_monarch_last_active_profile') === profileId) {
+            localStorage.removeItem('abyss_monarch_last_active_profile');
+        }
 
         // Update list
         const updatedList = list.filter(p => p.id !== profileId);
@@ -459,9 +482,14 @@ class GameState {
         return false;
     }
 
-    addManaCrystals(amount) {
+    addManaCrystals(amount, rank = 'E') {
         if (!this.state) return;
         this.state.inventory.manaCrystals += amount;
+        if (!this.state.inventory.crystalTiers) {
+            this.state.inventory.crystalTiers = { E: 0, D: 0, C: 0, B: 0, A: 0, S: 0 };
+        }
+        const r = (rank && ['E', 'D', 'C', 'B', 'A', 'S'].includes(rank)) ? rank : 'E';
+        this.state.inventory.crystalTiers[r] = (this.state.inventory.crystalTiers[r] || 0) + amount;
         this.save();
     }
 
