@@ -73,80 +73,8 @@ class GameState {
                 }
             },
             party: ['player'],
-            companions: {
-                min_ah: {
-                    id: 'min_ah',
-                    name: 'Lee Min-Ah',
-                    rank: 'A',
-                    baseClass: 'Mage',
-                    currentClass: 'Mage',
-                    level: 12,
-                    exp: 0,
-                    expNeeded: 1500,
-                    stats: { str: 8, dex: 12, vit: 15, int: 28, wis: 24, luk: 10 },
-                    skills: [{ id: 'fireball', level: 3, exp: 0, maxLevel: 10 }],
-                    equippedSkills: ['fireball'],
-                    equippedGear: {
-                        head: null, chest: null, pants: null, boots: null,
-                        shoulder_l: null, shoulder_r: null, glove_l: null, glove_r: null,
-                        belt: null, cape: null,
-                        ring_l1: null, ring_l2: null, ring_l3: null, ring_l4: null, ring_l5: null,
-                        ring_r1: null, ring_r2: null, ring_r3: null, ring_r4: null, ring_r5: null,
-                        weapon_l: null, weapon_r: null
-                    },
-                    trust: 10,
-                    affection: 0,
-                    recruited: false
-                },
-                jin_soo: {
-                    id: 'jin_soo',
-                    name: 'Park Jin-Soo',
-                    rank: 'B',
-                    baseClass: 'Warrior',
-                    currentClass: 'Warrior',
-                    level: 10,
-                    exp: 0,
-                    expNeeded: 1200,
-                    stats: { str: 24, dex: 10, vit: 26, int: 8, wis: 10, luk: 12 },
-                    skills: [{ id: 'provoke', level: 2, exp: 0, maxLevel: 10 }],
-                    equippedSkills: ['provoke'],
-                    equippedGear: {
-                        head: null, chest: null, pants: null, boots: null,
-                        shoulder_l: null, shoulder_r: null, glove_l: null, glove_r: null,
-                        belt: null, cape: null,
-                        ring_l1: null, ring_l2: null, ring_l3: null, ring_l4: null, ring_l5: null,
-                        ring_r1: null, ring_r2: null, ring_r3: null, ring_r4: null, ring_r5: null,
-                        weapon_l: null, weapon_r: null
-                    },
-                    trust: 15,
-                    affection: 5,
-                    recruited: false
-                },
-                yu_na: {
-                    id: 'yu_na',
-                    name: 'Shin Yu-Na',
-                    rank: 'B',
-                    baseClass: 'Cleric',
-                    currentClass: 'Cleric',
-                    level: 9,
-                    exp: 0,
-                    expNeeded: 1000,
-                    stats: { str: 10, dex: 10, vit: 16, int: 18, wis: 22, luk: 14 },
-                    skills: [{ id: 'heal', level: 2, exp: 0, maxLevel: 10 }],
-                    equippedSkills: ['heal'],
-                    equippedGear: {
-                        head: null, chest: null, pants: null, boots: null,
-                        shoulder_l: null, shoulder_r: null, glove_l: null, glove_r: null,
-                        belt: null, cape: null,
-                        ring_l1: null, ring_l2: null, ring_l3: null, ring_l4: null, ring_l5: null,
-                        ring_r1: null, ring_r2: null, ring_r3: null, ring_r4: null, ring_r5: null,
-                        weapon_l: null, weapon_r: null
-                    },
-                    trust: 5,
-                    affection: 0,
-                    recruited: false
-                }
-            },
+            companions: {},
+            availableDailyHunters: [],
             mercenaries: [],
             inventory: {
                 gold: 500,

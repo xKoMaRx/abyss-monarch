@@ -81,7 +81,7 @@ class UIEngine {
                     </div>
                     <div class="actions">
                         <button class="neon-btn cyan-btn" style="padding: 5px 10px; font-size: 9px;" onclick="window.uiEngine.executeLogin('${p.id}')">ZALOGUJ</button>
-                        <button class="neon-btn violet-btn" style="padding: 5px 8px; font-size: 9px; border-color: #f44336; color: #f44336; background: rgba(244,67,54,0.1);" onclick="window.uiEngine.executeDeleteProfile('${p.id}', event)"><i class="fa-solid fa-trash"></i></button>
+                        <button class="neon-btn violet-btn" style="padding: 10px 15px; font-size: 11px; border: 2px solid #f44336; color: #fff; background: #f44336; cursor: pointer; z-index: 1000;" onclick="event.stopPropagation(); window.uiEngine.executeDeleteProfile('${p.id}')">USUŃ</button>
                     </div>
                 </div>
             `;
@@ -150,12 +150,10 @@ class UIEngine {
         this.renderStartScreen();
     }
 
-    executeDeleteProfile(profileId, event) {
-        event.stopPropagation();
-        if (confirm('Czy na pewno chcesz bezpowrotnie usunąć ten profil i wyczyścić całą historię tego Łowcy?')) {
-            window.gameState.deleteProfile(profileId);
-            this.renderStartScreen();
-        }
+    executeDeleteProfile(profileId) {
+        console.log("Attempting to delete profile: ", profileId);
+        window.gameState.deleteProfile(profileId);
+        this.renderStartScreen();
     }
 
     openCharacterCreator() {
@@ -573,7 +571,7 @@ class UIEngine {
             }
         });
 
-        if (activeNpcId) {
+        if (activeNpcId && window.gameState.state.companions[activeNpcId]) {
             npcInteraction.classList.remove('hidden');
             const companion = window.gameState.state.companions[activeNpcId];
             
@@ -607,6 +605,43 @@ class UIEngine {
         } else {
             npcInteraction.classList.add('hidden');
         }
+
+        // --- NEW: Render daily hunters ---
+        const huntersInLoc = window.gameState.state.availableDailyHunters.filter(h => h.location === locId);
+        
+        if (huntersInLoc.length > 0) {
+            const huntersArea = document.createElement('div');
+            huntersArea.className = 'glass-panel';
+            huntersArea.style.marginTop = '15px';
+            huntersArea.innerHTML = `<h4 class="glowing-text cyan-neon"><i class="fa-solid fa-users"></i> Wolni Łowcy w mieście:</h4>`;
+            
+            huntersInLoc.forEach((hunter) => {
+                const hunterDiv = document.createElement('div');
+                hunterDiv.className = 'char-slot';
+                hunterDiv.style.display = 'flex';
+                hunterDiv.style.justifyContent = 'space-between';
+                hunterDiv.style.alignItems = 'center';
+                hunterDiv.style.padding = '10px';
+                hunterDiv.style.background = 'rgba(0,0,0,0.3)';
+                hunterDiv.style.marginBottom = '5px';
+                
+                const isRecruitable = hunter.trust >= 50;
+                
+                hunterDiv.innerHTML = `
+                    <div>
+                        <strong>${hunter.name}</strong> (${hunter.rank} Rank ${hunter.baseClass}) 
+                        <br><small>Lvl: ${hunter.level} | Zaufanie: ${hunter.trust}/100</small>
+                    </div>
+                    ${isRecruitable 
+                        ? `<button class="neon-btn cyan-btn" style="padding: 5px 10px;" onclick="window.uiEngine.recruitDailyHunter('${hunter.id}')">REKRUTUJ</button>` 
+                        : `<button class="neon-btn violet-btn" style="padding: 5px 10px;" onclick="window.uiEngine.startHunterInteraction('${hunter.id}')">ZNAJOMOŚĆ</button>`
+                    }
+                `;
+                huntersArea.appendChild(hunterDiv);
+            });
+            
+            document.getElementById('location-action-area').appendChild(huntersArea);
+        }
     }
 
     leaveLocation() {
@@ -639,6 +674,72 @@ class UIEngine {
         } else {
             alert('Nie posiadasz wystarczającej liczby Odłamków Otchłani na to ulepszenie.');
         }
+    }
+
+    recruitDailyHunter(id) {
+        const idx = window.gameState.state.availableDailyHunters.findIndex(h => h.id === id);
+        const hunter = window.gameState.state.availableDailyHunters[idx];
+        if (!hunter || hunter.trust < 50) return;
+
+        // Add to companions
+        hunter.recruited = true;
+        window.gameState.state.companions[hunter.id] = hunter;
+        
+        // Remove from available
+        window.gameState.state.availableDailyHunters.splice(idx, 1);
+        
+        window.gameState.save();
+        alert(`Zrekrutowałeś łowcę: ${hunter.name}!`);
+        this.enterCityLocation(this.currentLocationId); // refresh
+    }
+
+    startHunterInteraction(id) {
+        const hunter = window.gameState.state.availableDailyHunters.find(h => h.id === id);
+        if (!hunter) return;
+
+        const npcInteraction = document.getElementById('npc-interaction-panel');
+        this.activeInteractionHunterId = id;
+        
+        npcInteraction.classList.remove('hidden');
+        document.getElementById('location-action-area').classList.add('hidden');
+        
+        // Populate panel
+        document.getElementById('npc-active-name').innerText = hunter.name;
+        document.getElementById('npc-trust-val').innerText = hunter.trust;
+        document.getElementById('npc-affection-val').innerText = hunter.affection || 0;
+        document.getElementById('npc-dialogue-text').innerText = `Cześć, jestem ${hunter.name}. Co słychać?`;
+        
+        // Setup simple interactions
+        const choices = document.getElementById('dialogue-choices');
+        choices.innerHTML = `
+            <button class="neon-btn" onclick="window.uiEngine.interactWithHunter('talk')">Rozmawiaj</button>
+            <button class="neon-btn" onclick="window.uiEngine.interactWithHunter('gift')">Podaruj prezent</button>
+            <button class="neon-btn" onclick="window.uiEngine.closeHunterInteraction()">Wróć</button>
+        `;
+    }
+
+    closeHunterInteraction() {
+        document.getElementById('npc-interaction-panel').classList.add('hidden');
+        document.getElementById('location-action-area').classList.remove('hidden');
+        this.activeInteractionHunterId = null;
+    }
+
+    interactWithHunter(type) {
+        const id = this.activeInteractionHunterId;
+        const hunter = window.gameState.state.availableDailyHunters.find(h => h.id === id);
+        if (!hunter) return;
+
+        if (type === 'talk') {
+            hunter.trust += 5;
+            document.getElementById('npc-dialogue-text').innerText = "Dzięki za rozmowę, czuję że lepiej cię poznaję.";
+        } else if (type === 'gift') {
+            hunter.trust += 15;
+            document.getElementById('npc-dialogue-text').innerText = "O, dziękuję! To miłe.";
+        }
+        
+        if (hunter.trust > 100) hunter.trust = 100;
+        document.getElementById('npc-trust-val').innerText = hunter.trust;
+        window.gameState.save(); // Save progress
     }
 
     /**
@@ -1009,6 +1110,9 @@ class UIEngine {
         reserveContainer.innerHTML = '';
 
         for (let id in state.companions) {
+            // Filter out old hardcoded companions
+            if (['min_ah', 'jin_soo', 'yu_na'].includes(id)) continue;
+            
             const comp = state.companions[id];
             if (comp.recruited && !state.party.includes(id)) {
                 const isSel = this.selectedCompanionId === id ? 'selected' : '';
@@ -1019,16 +1123,6 @@ class UIEngine {
                             <span class="lvl-cls">Lvl ${comp.level} | ${comp.currentClass}</span>
                         </div>
                         <button class="neon-btn cyan-btn" style="padding: 4px 8px; font-size: 9px;" onclick="window.uiEngine.equipCompanionToParty('${id}')">USTAW W SKŁADZIE</button>
-                    </div>
-                `;
-            } else if (!comp.recruited) {
-                reserveContainer.innerHTML += `
-                    <div class="char-slot" style="opacity: 0.6; cursor: default;">
-                        <div class="info">
-                            <span class="name">${comp.name} (Zablokowana)</span>
-                            <span class="lvl-cls">Zaufanie: ${comp.trust}/100</span>
-                        </div>
-                        <span class="badge" style="background: rgba(244, 67, 54, 0.2); color: #f44336;">NIEZREKRUTOWANY</span>
                     </div>
                 `;
             }

@@ -93,6 +93,20 @@ class CitySystem {
             window.gameState.state.companions[key].talkedToday = false;
         }
 
+        // --- NEW: Generate Daily Hunters ---
+        window.gameState.state.availableDailyHunters = [];
+        const numHunters = 4; // increased slightly for more variety
+        const locationIds = Object.keys(this.locations);
+        
+        for (let i = 0; i < numHunters; i++) {
+            const hunter = window.hunterGenerator.generate();
+            // Random location
+            const randomLoc = locationIds[Math.floor(Math.random() * locationIds.length)];
+            hunter.location = randomLoc;
+            window.gameState.state.availableDailyHunters.push(hunter);
+        }
+        window.gameState.save();
+
         // --- Dungeon Integration: daily cleanups, dungeon breaks penalties, and fresh spawning ---
         const world = window.gameState.state.world;
         if (world.dynamicGates && world.dynamicGates.length > 0) {
