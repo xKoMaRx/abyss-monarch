@@ -1,20 +1,36 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Hunter Academy RPG
 
-# Run and deploy your AI Studio app
+Witaj w **Hunter Academy RPG** - przeglądarkowej grze RPG/menedżerskiej, w której wcielasz się w rolę zarządcy gildii łowców potworów. Twoim celem jest budowanie zespołu, rozwijanie umiejętności, zdobywanie zaufania łowców i dbanie o bezpieczeństwo miasta.
 
-This contains everything you need to run your app locally.
+## Główne Cechy
 
-View your app in AI Studio: https://ai.studio/apps/e669e559-a439-4f7b-add2-deebd82df462
+*   **Losowy System Łowców**: Każdego dnia w różnych częściach miasta pojawiają się nowi, losowo wygenerowani łowcy z unikalnymi statystykami i klasami.
+*   **System Relacji**: Nie rekrutujesz łowców "za darmo". Musisz budować z nimi relacje poprzez rozmowy i prezenty, aby zyskać ich zaufanie (Trust) i ostatecznie zwerbować ich do swojej drużyny.
+*   **Zarządzanie Lokacjami**: Odwiedzaj Bibliotekę, Akademię, Tawernę czy Park Centralny. Każde miejsce oferuje inne możliwości rozwoju.
+*   **Stylistyka**: Gra utrzymana jest w nowoczesnym, neonowym stylu z interaktywnymi panelami i przejrzystym interfejsem użytkownika.
 
-## Run Locally
+## Zrzuty z Ekranu
 
-**Prerequisites:**  Node.js
+*(Obrazy poglądowe)*
 
+![Mapa Miasta](screenshots/city_map.png)
+*Widok mapy miasta i dostępnych lokacji.*
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+![Ekrana Rozmowy z NPC](screenshots/npc_interaction.png)
+*Panel interakcji z łowcą - rozmowy, prezenty i zarządzanie zaufaniem.*
+
+## Jak Grać
+
+1.  **Eksploruj miasto** - odwiedzaj lokacje, aby spotkać dostępnych łowców.
+2.  **Buduj zaufanie** - rozmawiaj z łowcami, aby zwiększać ich wskaźnik zaufania.
+3.  **Rekrutuj** - kiedy zaufanie osiągnie odpowiedni poziom (50+), możesz zwerbować łowcę do swojej drużyny.
+4.  **Rozwijaj się** - korzystaj z Akademii i Biblioteki, aby poprawiać statystyki swojej postaci.
+
+## Technologie
+
+*   JavaScript (ES6+)
+*   Tailwind CSS
+*   HTML5
+
+---
+*Stworzono z pasją do gier RPG.*
